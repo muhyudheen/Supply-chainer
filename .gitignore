@@ -5,3 +5,6 @@ __pycache__/
 venv/
 env/
 .env
+# Dependencies (rebuilt by `uv sync` and `npm ci`)
+.venv/
+node_modules/
