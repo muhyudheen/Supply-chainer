@@ -1,0 +1,47 @@
+[project]
+name = "supplychainer"
+version = "0.1.0"
+description = "TatHack '26 prelim: Supplychainer context-aware multimodal routing engine"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+# Versions match the organizers' requirements.txt. uvloop is left out: it has no
+# Windows build, and uvicorn[standard] only pulls it in on Linux/macOS.
+dependencies = [
+    "fastapi==0.136.1",
+    "uvicorn[standard]==0.46.0",
+    "networkx==3.6.1",
+    "numpy==2.4.4",
+    "pandas==3.0.2",
+    "scikit-learn==1.8.0", # must match the version that pickled Execution/risk_model.pkl
+    "joblib==1.5.3",
+    "torch==2.11.0",
+    "sentence-transformers==5.4.1",
+    "feedparser==6.0.12",
+    "requests==2.33.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "httpx==0.28.1", # FastAPI TestClient
+]
+# Only the old prototype and offline scripts need these (Code/, benchmarks/, backend/engine/or_baseline.py).
+# Install with: uv sync --group legacy
+legacy = [
+    "ortools==9.15.6755",
+    "matplotlib==3.10.9",
+    "seaborn==0.13.2",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+package = false
+
+# CPU-only torch: the app only runs MiniLM inference, and the CUDA build is several GB on Linux.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
