@@ -24,10 +24,12 @@ class SupplierScorer:
         filtered = [s for s in self.suppliers if s['category'] == category]
         
         scored_suppliers = []
+        cheapest = min((s['unit_cost'] for s in filtered), default=0)
         for s in filtered:
             # Deterministic Scoring Base
             # 1. Cost Score (0.3)
-            cost_score = 1.0 - (s['unit_cost'] / 1000.0) # Normalized to $1k cap for demo
+            # P2: relative to the cheapest supplier in the category (1.0 = cheapest), so it stays in 0..1
+            cost_score = cheapest / s['unit_cost'] if s['unit_cost'] > 0 else 1.0
             
             # 2. Lead Time Score (0.3)
             # Base lead time + disruption penalty
