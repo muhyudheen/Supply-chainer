@@ -73,3 +73,17 @@ test('F4: route cards render the leg facts and the route threat', () => {
   assert.ok(src.includes('legFacts(leg)'));
   assert.ok(src.includes('rec.threat_level'));
 });
+
+// F5: no hardcoded claims; only what the API returned
+test('F5: scenarioLegCount counts the legs a scenario hit', () => {
+  const rec = { legs: [{ intel_source: 'SCENARIO' }, { intel_source: 'FALLBACK' }, { intel_source: 'SCENARIO' }] };
+  assert.equal(ui.scenarioLegCount(rec), 2);
+  assert.equal(ui.scenarioLegCount(null), 0);
+});
+
+test('F5: the hardcoded claims are gone', () => {
+  const src = source('RouteRecommender.jsx');
+  for (const claim of ['ACTIVE GLOBAL DISRUPTION DETECTED', 'co-location miracles', 'TRUTH AUDIT VERIFIED', 'Strategic Truth Anchor'])
+    assert.ok(!src.includes(claim), claim);
+  assert.ok(src.includes('activeScenario'), 'the scenario banner comes from the response');
+});

@@ -36,6 +36,11 @@ export function legFacts(leg) {
   };
 }
 
+// How many legs of a route a scenario actually hit (the backend marks them intel_source SCENARIO).
+export function scenarioLegCount(rec) {
+  return (rec?.legs ?? []).filter(l => l.intel_source === 'SCENARIO').length;
+}
+
 // Display names for hub ids (e.g. the response's closed_hubs), falling back to the id itself.
 export function hubNames(ids, namesById) {
   return (ids ?? []).map(id => namesById[id] ?? id);

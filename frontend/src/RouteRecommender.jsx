@@ -6,7 +6,7 @@ import {
   Filter, ShieldAlert, Zap, Globe, Package,
   ArrowRightLeft, AlertCircle, BarChart3, Activity, Layers, Terminal
 } from 'lucide-react';
-import { buildOverrides, hubNames, legFacts, parseCount, pickSelected } from './uiLogic.js';
+import { buildOverrides, hubNames, legFacts, parseCount, pickSelected, scenarioLegCount } from './uiLogic.js';
 
 // The audit trace holds raw floats (e.g. 16.95663775053027); show hours to 0.1 and dollars to the cent.
 const hours = (h) => Math.round(h * 10) / 10;
@@ -35,6 +35,8 @@ const RouteRecommender = ({ onNavigate }) => {
   const [costCeiling, setCostCeiling] = useState('');
   const [maxTransitDays, setMaxTransitDays] = useState('');
   const [closedHubs, setClosedHubs] = useState([]);
+  // The scenario the backend says it applied to the last result (F5), not the dropdown's current value
+  const [activeScenario, setActiveScenario] = useState(null);
 
   useEffect(() => {
     // Pull the live scenario list from the backend instead of hardcoding IDs here,
@@ -78,10 +80,12 @@ const RouteRecommender = ({ onNavigate }) => {
         setError(data.error);
         setRecommendations([]);
         setClosedHubs([]);
+        setActiveScenario(null);
       } else {
         setRecommendations(data.recommendations ?? []);
         setSelectedIdx(0);
         setClosedHubs(data.closed_hubs ?? []);
+        setActiveScenario(data.active_scenario ?? null);
       }
     } catch (err) {
       setError("Engine connection failed. Verify backend status.");
@@ -251,12 +255,16 @@ const RouteRecommender = ({ onNavigate }) => {
 
       {/* Main Area */}
       <main className="main-content">
-        {operationalConfig !== 'NORMAL' && (
+        {activeScenario && selected && (
           <div className="scenario-banner animate-slide-in">
             <AlertTriangle size={20} />
             <div>
-              <span style={{fontWeight: 800, fontSize: '0.75rem', display: 'block'}}>ACTIVE GLOBAL DISRUPTION DETECTED</span>
-              <span style={{fontSize: '0.875rem'}}>{(scenarios.find(s => s.id === operationalConfig)?.name) || operationalConfig} logic active in unified solver.</span>
+              <span style={{fontWeight: 800, fontSize: '0.75rem', display: 'block'}}>SCENARIO APPLIED: {activeScenario}</span>
+              <span style={{fontSize: '0.875rem'}}>
+                {scenarioLegCount(selected) > 0
+                  ? `Legs hit on ${selected.persona}: ${scenarioLegCount(selected)} of ${selected.legs.length}.`
+                  : `No leg on ${selected.persona} passes a hub it affects.`}
+              </span>
             </div>
           </div>
         )}
@@ -364,8 +372,11 @@ const RouteRecommender = ({ onNavigate }) => {
             </div>
 
             <div className="audit-trace-box" style={{borderLeft: '4px solid #f59e0b'}}>
-               <div style={{marginBottom: '0.5rem', fontWeight: 700, color: '#f8fafc'}}>Strategic Truth Anchor</div>
-               <div>Verified against Split-Node Forensic Architecture. 0ms co-location miracles detected.</div>
+               <div style={{marginBottom: '0.5rem', fontWeight: 700, color: '#f8fafc'}}>Risk Exposure</div>
+               <div>Highest leg threat: {Math.round(selected.threat_level * 100)}%</div>
+               <div>Scenario: {activeScenario ?? 'None'}</div>
+               {activeScenario && <div>Legs hit: {scenarioLegCount(selected)} of {selected.legs.length}</div>}
+               {closedHubs.length > 0 && <div>Closed: {hubNames(closedHubs, hubNameById).join(', ')}</div>}
             </div>
           </div>
         ) : (
@@ -374,13 +385,6 @@ const RouteRecommender = ({ onNavigate }) => {
             <p style={{fontSize: '0.8rem'}}>Awaiting operational data stream...</p>
           </div>
         )}
-
-        <div style={{marginTop: 'auto'}}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(59, 130, 246, 0.1)', padding: '0.75rem', borderRadius: '8px', border: '1px solid #3b82f6'}}>
-            <ShieldCheck size={16} color="#3b82f6" />
-            <span style={{fontSize: '0.65rem', fontWeight: 800, color: '#3b82f6'}}>TRUTH AUDIT VERIFIED</span>
-          </div>
-        </div>
       </aside>
 
       {/* Bottom Tradeoff Strip */}
