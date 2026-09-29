@@ -41,8 +41,13 @@ def test_ti3_real_disaster_scores_high(nlp):
 # TI5: a disaster sentence after >256 chars of good news must still be caught
 @pytest.mark.slow
 def test_ti5_disaster_in_good_news(nlp):
-    good = "Markets are growing and port operations are running normally today. " * 4
-    assert nlp.get_semantic_score(good + "Container ship Ever Given runs aground in the Suez Canal, blocking all traffic.") > 0.5
+    # A calm first chunk that closely matches a "normal operations" anchor used to cancel the disaster
+    # in the second chunk: old logic scored 0.00, per-chunk logic scores 0.93.
+    calm = ("Operations at the Port of Rotterdam are proceeding normally. Vessel turnaround times are within "
+            "expected parameters and terminal capacity remains optimal. Air cargo capacity on the trans-Atlantic "
+            "corridor remains high with no reported backlogs at major hubs.")
+    assert nlp.get_semantic_score(calm + " Container ship Ever Given runs aground in the Suez Canal, "
+                                  "blocking all traffic in both directions.") > 0.5
 
 # TI7/TI8/TI9: CARF drops a threat only when the news is about OTHER modes
 @pytest.mark.parametrize("text,mode,kept", [

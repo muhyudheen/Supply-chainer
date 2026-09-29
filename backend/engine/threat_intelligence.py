@@ -172,9 +172,11 @@ class ContrastiveNLPEngine:
         if not news_text or len(news_text.strip()) < 5: return 0.0
         chunks = [news_text[i:i+256] for i in range(0, len(news_text), 256)]
         chunk_embeddings = self.model.encode(chunks, convert_to_tensor=True)
-        d_scores = self.util.cos_sim(chunk_embeddings, self.disaster_matrix)
-        s_scores = self.util.cos_sim(chunk_embeddings, self.safe_matrix)
-        margin = float(np.max(d_scores.cpu().numpy())) - float(np.max(s_scores.cpu().numpy()))
+        # Margin per chunk (best disaster match minus best safe match within the SAME chunk),
+        # then the strongest chunk, so one calm chunk cannot cancel an alarming one.
+        d_best = self.util.cos_sim(chunk_embeddings, self.disaster_matrix).max(dim=1).values
+        s_best = self.util.cos_sim(chunk_embeddings, self.safe_matrix).max(dim=1).values
+        margin = float((d_best - s_best).max())
         return self.score_from_margin(margin)
 
     def score_from_margin(self, margin: float) -> float:
