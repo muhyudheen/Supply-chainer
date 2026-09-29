@@ -142,7 +142,7 @@ class ContrastiveNLPEngine:
     def __init__(self, lazy_load=False):
         self._ready = False
         self.noise_floor = 0.04
-        self.calibration_multiplier = 0.35
+        self.saturation_margin = 0.6  # margin at which threat reaches 1.0 (measured: Ever Given headline = 0.567)
         if not lazy_load:
             self.warmup()
 
@@ -175,8 +175,13 @@ class ContrastiveNLPEngine:
         d_scores = self.util.cos_sim(chunk_embeddings, self.disaster_matrix)
         s_scores = self.util.cos_sim(chunk_embeddings, self.safe_matrix)
         margin = float(np.max(d_scores.cpu().numpy())) - float(np.max(s_scores.cpu().numpy()))
-        if margin >= self.noise_floor: return 0.0
-        return float(min(1.0, margin * self.calibration_multiplier))
+        return self.score_from_margin(margin)
+
+    def score_from_margin(self, margin: float) -> float:
+        """Map the disaster-vs-safe margin to a 0-1 threat: noise (below the floor) is 0, saturation_margin and above is 1."""
+        if margin < self.noise_floor:
+            return 0.0
+        return float(min(1.0, (margin - self.noise_floor) / (self.saturation_margin - self.noise_floor)))
 
 class CARFFilter:
     """Stage 3: TRUE CARF (Context-Aware Relevance Filter)."""
