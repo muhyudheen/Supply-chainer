@@ -7,3 +7,4 @@
 - F1 (`b952697`): Claude Code wrote the selectable route cards, the `pickSelected` helper, the audit-panel change and their tests.
 - F4: Claude Code wrote the per-leg time/cost/threat line, the scenario-reason line, the route threat badge, the `legFacts` helper and their tests.
 - F5: Claude Code removed the hardcoded claims, wrote the response-based scenario banner and Risk Exposure box, the `scenarioLegCount` helper and their tests.
+- F10: Claude Code wrote the `EngineStatus` header badge, the `engineStatusView` helper, the /ws reconnect in `App.jsx` and their tests.

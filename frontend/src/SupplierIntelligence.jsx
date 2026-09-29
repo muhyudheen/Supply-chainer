@@ -3,9 +3,10 @@ import {
   Shield, AlertTriangle, Clock, TrendingUp, Info, 
   BarChart3, Package, Truck, Database, Activity, CheckCircle2, ShieldAlert, Zap
 } from 'lucide-react';
+import EngineStatus from './EngineStatus.jsx';
 import { parseCount } from './uiLogic.js';
 
-export default function SupplierIntelligence({ onNavigate }) {
+export default function SupplierIntelligence({ onNavigate, engineStatus }) {
   const [suppliers, setSuppliers] = useState([]);
   const [advice, setAdvice] = useState(null);
   const [error, setError] = useState(null);
@@ -79,7 +80,8 @@ export default function SupplierIntelligence({ onNavigate }) {
           </h2>
           <p className="sc-subtitle">Strategic Sourcing Decision Matrix</p>
         </div>
-        <div style={{display: 'flex', gap: '1rem'}}>
+        <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
+          <EngineStatus status={engineStatus} />
           <button className="sc-badge-active" style={{cursor: 'pointer', borderColor: '#8b5cf6', color: '#8b5cf6'}} onClick={() => onNavigate('recommend')}>
             Route Recommender
           </button>

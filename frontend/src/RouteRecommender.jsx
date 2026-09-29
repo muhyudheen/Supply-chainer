@@ -6,13 +6,14 @@ import {
   Filter, ShieldAlert, Zap, Globe, Package,
   ArrowRightLeft, AlertCircle, BarChart3, Activity, Layers, Terminal
 } from 'lucide-react';
+import EngineStatus from './EngineStatus.jsx';
 import { buildOverrides, hubNames, legFacts, parseCount, pickSelected, scenarioLegCount } from './uiLogic.js';
 
 // The audit trace holds raw floats (e.g. 16.95663775053027); show hours to 0.1 and dollars to the cent.
 const hours = (h) => Math.round(h * 10) / 10;
 const usd = (n) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
-const RouteRecommender = ({ onNavigate }) => {
+const RouteRecommender = ({ onNavigate, engineStatus }) => {
   const [source, setSource] = useState('');
   const [destination, setDestination] = useState('');
   const [transportMode, setTransportMode] = useState('any');
@@ -140,7 +141,8 @@ const RouteRecommender = ({ onNavigate }) => {
             <p style={{fontSize: '0.7rem', color: '#64748b', fontWeight: 700}}>UNIFIED MULTIMODAL DECISION SUPERIORITY ENGINE</p>
           </div>
         </div>
-        <div style={{display: 'flex', gap: '1rem'}}>
+        <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
+          <EngineStatus status={engineStatus} />
           <button className="sc-badge-active" onClick={() => onNavigate('suppliers')} style={{cursor: 'pointer'}}>
             <ShieldCheck size={14} /> SUPPLIER INTELLIGENCE
           </button>

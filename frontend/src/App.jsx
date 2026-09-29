@@ -16,21 +16,31 @@ export default function App() {
       
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws`;
-    const ws = new WebSocket(wsUrl);
-    ws.onmessage = (event) => {
-      const state = JSON.parse(event.data);
-      setStatus(state);
+    // Reconnect when the backend restarts, and show OFFLINE while it's down (F10).
+    let ws, retry, closed = false;
+    const connect = () => {
+      ws = new WebSocket(wsUrl);
+      ws.onmessage = (event) => {
+        const state = JSON.parse(event.data);
+        setStatus(state);
+      };
+      ws.onclose = () => {
+        if (closed) return;
+        setStatus({ engine_status: 'OFFLINE' });
+        retry = setTimeout(connect, 3000);
+      };
     };
-    
-    return () => ws.close();
+    connect();
+
+    return () => { closed = true; clearTimeout(retry); ws.close(); };
   }, []);
 
   if (currentView === 'recommend') {
-    return <RouteRecommender onNavigate={setCurrentView} />;
+    return <RouteRecommender onNavigate={setCurrentView} engineStatus={status} />;
   }
 
   if (currentView === 'suppliers') {
-    return <SupplierIntelligence onNavigate={setCurrentView} />;
+    return <SupplierIntelligence onNavigate={setCurrentView} engineStatus={status} />;
   }
 
   if (currentView === 'benchmark') {

@@ -41,6 +41,17 @@ export function scenarioLegCount(rec) {
   return (rec?.legs ?? []).filter(l => l.intel_source === 'SCENARIO').length;
 }
 
+// Header badge for the /ws engine status. null means no message yet; OFFLINE is set by App when the socket drops.
+export function engineStatusView(status) {
+  const s = status?.engine_status;
+  if (!s) return { label: 'CONNECTING TO ENGINE', tone: 'muted', hint: 'Waiting for the first /ws status message' };
+  if (s === 'FULLY OPERATIONAL') return { label: 'ENGINE OPERATIONAL', tone: 'ok', hint: 'NLP threat engine warmed up' };
+  if (s === 'WARMING RISK ENGINE') return { label: 'WARMING RISK ENGINE', tone: 'warn', hint: 'Threat scores are not ready yet' };
+  if (s === 'WARM-UP FAILED') return { label: 'NLP WARM-UP FAILED', tone: 'error', hint: 'The NLP threat engine failed to load; see the backend log' };
+  if (s === 'OFFLINE') return { label: 'ENGINE OFFLINE', tone: 'error', hint: 'Lost the /ws connection; retrying' };
+  return { label: s, tone: 'warn', hint: 'Unrecognised engine status' };
+}
+
 // Display names for hub ids (e.g. the response's closed_hubs), falling back to the id itself.
 export function hubNames(ids, namesById) {
   return (ids ?? []).map(id => namesById[id] ?? id);

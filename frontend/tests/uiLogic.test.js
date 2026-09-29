@@ -87,3 +87,20 @@ test('F5: the hardcoded claims are gone', () => {
     assert.ok(!src.includes(claim), claim);
   assert.ok(src.includes('activeScenario'), 'the scenario banner comes from the response');
 });
+
+// F10: the /ws engine status is shown, including a failed NLP warm-up
+test('F10: engineStatusView maps each /ws state to a label and tone', () => {
+  assert.equal(ui.engineStatusView(null).tone, 'muted');
+  assert.equal(ui.engineStatusView({ engine_status: 'FULLY OPERATIONAL' }).tone, 'ok');
+  assert.equal(ui.engineStatusView({ engine_status: 'WARMING RISK ENGINE' }).tone, 'warn');
+  const failed = ui.engineStatusView({ engine_status: 'WARM-UP FAILED' });
+  assert.equal(failed.tone, 'error');
+  assert.match(failed.label, /WARM-UP FAILED/);
+  assert.equal(ui.engineStatusView({ engine_status: 'OFFLINE' }).tone, 'error');
+});
+
+test('F10: App passes the status down and both pages show it', () => {
+  assert.ok(source('App.jsx').includes('engineStatus={status}'));
+  for (const page of ['RouteRecommender.jsx', 'SupplierIntelligence.jsx'])
+    assert.ok(source(page).includes('<EngineStatus status={engineStatus}'), page);
+});
