@@ -169,7 +169,8 @@ class RouteRecommender:
                     l_time = base_time
                     base_cost = d.get("cost", 0)
                     l_cost = base_cost
-                    l_threat = d.get("base_threat", 0.05)
+                    base_threat = d.get("base_threat", 0.05)
+                    l_threat = base_threat
                     l_news = d.get("base_news", "Standard conditions")
                     l_source = "FALLBACK"
                     
@@ -192,7 +193,8 @@ class RouteRecommender:
                     else:
                         trace["eta"]["transit"] += base_time
                         trace["cost"]["transit"] += base_cost
-                        trace["risk"]["baseline"] = max(trace["risk"]["baseline"], l_threat)
+                        # R12: baseline is the leg's own threat, before any scenario
+                        trace["risk"]["baseline"] = max(trace["risk"]["baseline"], base_threat)
 
                     total_time += l_time
                     total_cost += l_cost
