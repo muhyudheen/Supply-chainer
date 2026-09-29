@@ -68,6 +68,8 @@ TRANSFER_PROFILES = {
 WATER_SEPARATED = [{"UK", "France"}, {"UK", "Netherlands"}, {"Morocco", "Spain"},
                    {"Indonesia", "Singapore"}, {"Indonesia", "Malaysia"}]
 
+MIN_LEG_KM = 5.0  # hubs sharing coordinates in the data are still separate facilities (N10)
+
 def create_multimodal_network():
     """
     Supplychainer Unified Multimodal Optimization Graph.
@@ -137,6 +139,8 @@ def create_multimodal_network():
         u_base = hub["id"]
         for conn in hub.get("connections", []):
             v_base = conn["to"]
+            if v_base == u_base:
+                continue
             mode = conn["mode"]
             
             if mode == 'sea' and not sea_link_allowed(u_base, v_base):
@@ -147,7 +151,7 @@ def create_multimodal_network():
             
             if G.has_node(u_vnode) and G.has_node(v_vnode):
                 h1, h2 = hub, hub_lookup[v_base]
-                dist = _haversine(h1["lat"], h1["lon"], h2["lat"], h2["lon"])
+                dist = max(_haversine(h1["lat"], h1["lon"], h2["lat"], h2["lon"]), MIN_LEG_KM)
                 t = _travel_time(dist, mode)
                 cost = dist * MODE_PROFILES[mode]["cost_per_km"]
                 
@@ -185,8 +189,8 @@ def create_multimodal_network():
     for i, h1 in enumerate(hubs):
         if "road" not in h1["modes"]: continue
         for h2 in hubs[i+1:]:
-            if "road" not in h2["modes"]: continue
-            d = _haversine(h1["lat"], h1["lon"], h2["lat"], h2["lon"])
+            if "road" not in h2["modes"] or h2["id"] == h1["id"]: continue  # HUB-CHICAGO is listed twice in the data
+            d = max(_haversine(h1["lat"], h1["lon"], h2["lat"], h2["lon"]), MIN_LEG_KM)
             if d < 200 and {h1["country"], h2["country"]} not in WATER_SEPARATED:
                 u, v = f"{h1['id']}:road", f"{h2['id']}:road"
                 if G.has_node(u) and G.has_node(v) and not G.has_edge(u, v):
