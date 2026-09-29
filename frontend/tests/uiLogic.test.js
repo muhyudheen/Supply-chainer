@@ -58,3 +58,18 @@ test('F1: the audit panel no longer reads recommendations[0]', () => {
   assert.ok(src.includes('selected.audit_trace'));
   assert.ok(src.includes('aria-pressed={idx === selectedIdx}'));
 });
+
+// F4: route cards explain each leg: time, cost, threat, and the scenario reason
+test('F4: legFacts formats time, cost and threat, and keeps only scenario reasons', () => {
+  const leg = { eta: 24.35, cost: 1234.5, threat: 0.05, reason: 'No live news for this corridor', intel_source: 'FALLBACK' };
+  assert.deepEqual(ui.legFacts(leg), { time: '24.4h', cost: '$1,234.50', threat: '5%', reason: null });
+  const hit = { eta: 264, cost: 900, threat: 1, reason: 'Suez Canal blocked', intel_source: 'SCENARIO' };
+  assert.equal(ui.legFacts(hit).reason, 'Suez Canal blocked');
+  assert.equal(ui.legFacts(hit).threat, '100%');
+});
+
+test('F4: route cards render the leg facts and the route threat', () => {
+  const src = source('RouteRecommender.jsx');
+  assert.ok(src.includes('legFacts(leg)'));
+  assert.ok(src.includes('rec.threat_level'));
+});

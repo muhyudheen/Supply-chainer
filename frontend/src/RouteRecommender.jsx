@@ -6,7 +6,7 @@ import {
   Filter, ShieldAlert, Zap, Globe, Package,
   ArrowRightLeft, AlertCircle, BarChart3, Activity, Layers, Terminal
 } from 'lucide-react';
-import { buildOverrides, hubNames, parseCount, pickSelected } from './uiLogic.js';
+import { buildOverrides, hubNames, legFacts, parseCount, pickSelected } from './uiLogic.js';
 
 // The audit trace holds raw floats (e.g. 16.95663775053027); show hours to 0.1 and dollars to the cent.
 const hours = (h) => Math.round(h * 10) / 10;
@@ -285,8 +285,11 @@ const RouteRecommender = ({ onNavigate }) => {
                   rec.persona === 'FASTEST' ? 'tag-fastest' :
                   rec.persona === 'SAFEST' ? 'tag-safest' : 'tag-balanced'
                 }`}>{rec.persona}</span>
-                <div style={{display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontFamily: 'JetBrains Mono'}}>
-                   <Clock size={12} /> {rec.adjusted_eta}h
+                <div style={{display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.75rem', fontFamily: 'JetBrains Mono'}}>
+                   <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}><Clock size={12} /> {rec.adjusted_eta}h</span>
+                   <span style={{display: 'flex', alignItems: 'center', gap: '4px', color: rec.threat_level >= 0.5 ? '#ef4444' : '#94a3b8'}} title="Highest leg threat on this route">
+                     <ShieldAlert size={12} /> {Math.round(rec.threat_level * 100)}%
+                   </span>
                 </div>
               </div>
               <div style={{padding: '1.25rem'}}>
@@ -295,6 +298,7 @@ const RouteRecommender = ({ onNavigate }) => {
                 <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem', borderLeft: '2px solid #1e293b', paddingLeft: '1rem', marginLeft: '0.5rem'}}>
                   {rec.legs.map((leg, lIdx) => {
                     const isTransfer = leg.type === 'transfer';
+                    const facts = legFacts(leg);
                     return (
                       <div key={lIdx} style={{display: 'flex', flexDirection: 'column', opacity: isTransfer ? 0.7 : 1}}>
                         <span style={{
@@ -312,6 +316,14 @@ const RouteRecommender = ({ onNavigate }) => {
                         <span style={{fontSize: '0.8rem', fontWeight: 600}}>
                           {isTransfer ? `Processing at ${leg.to_name}` : `to ${leg.to_name}`}
                         </span>
+                        <span style={{fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'JetBrains Mono'}}>
+                          {facts.time} · {facts.cost} · threat <span style={{color: leg.threat >= 0.5 ? '#ef4444' : '#94a3b8'}}>{facts.threat}</span>
+                        </span>
+                        {facts.reason && (
+                          <span style={{fontSize: '0.7rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                            <AlertTriangle size={11} /> {facts.reason}
+                          </span>
+                        )}
                       </div>
                     );
                   })}

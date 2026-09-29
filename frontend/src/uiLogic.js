@@ -25,6 +25,17 @@ export function pickSelected(recommendations, index) {
   return recommendations[index] ?? recommendations[0] ?? null;
 }
 
+// What a route card shows for one leg. The reason is kept only when a scenario hit the leg: otherwise
+// it is the backend's generic "no live news" text, which explains nothing.
+export function legFacts(leg) {
+  return {
+    time: `${Math.round(leg.eta * 10) / 10}h`,
+    cost: `$${leg.cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    threat: `${Math.round(leg.threat * 100)}%`,
+    reason: leg.intel_source === 'SCENARIO' ? leg.reason : null,
+  };
+}
+
 // Display names for hub ids (e.g. the response's closed_hubs), falling back to the id itself.
 export function hubNames(ids, namesById) {
   return (ids ?? []).map(id => namesById[id] ?? id);
