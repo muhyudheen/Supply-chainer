@@ -43,3 +43,18 @@ test('F2: the fixed "Auto-bypass" text is gone and overrides are sent', () => {
   assert.ok(src.includes('overrides: buildOverrides('));
   assert.ok(src.includes('closed_hubs'));
 });
+
+// F1: the audit panel follows the selected card, not always card #1
+test('F1: pickSelected returns the chosen card, falling back to the first', () => {
+  const recs = [{ persona: 'FASTEST' }, { persona: 'BALANCED' }, { persona: 'SAFEST' }];
+  assert.equal(ui.pickSelected(recs, 2).persona, 'SAFEST');
+  assert.equal(ui.pickSelected(recs, 7).persona, 'FASTEST'); // stale index after a smaller result
+  assert.equal(ui.pickSelected([], 0), null);
+});
+
+test('F1: the audit panel no longer reads recommendations[0]', () => {
+  const src = source('RouteRecommender.jsx');
+  assert.ok(!src.includes('recommendations[0].audit_trace'));
+  assert.ok(src.includes('selected.audit_trace'));
+  assert.ok(src.includes('aria-pressed={idx === selectedIdx}'));
+});

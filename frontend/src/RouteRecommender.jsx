@@ -6,7 +6,11 @@ import {
   Filter, ShieldAlert, Zap, Globe, Package,
   ArrowRightLeft, AlertCircle, BarChart3, Activity, Layers, Terminal
 } from 'lucide-react';
-import { buildOverrides, hubNames, parseCount } from './uiLogic.js';
+import { buildOverrides, hubNames, parseCount, pickSelected } from './uiLogic.js';
+
+// The audit trace holds raw floats (e.g. 16.95663775053027); show hours to 0.1 and dollars to the cent.
+const hours = (h) => Math.round(h * 10) / 10;
+const usd = (n) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 const RouteRecommender = ({ onNavigate }) => {
   const [source, setSource] = useState('');
@@ -17,6 +21,8 @@ const RouteRecommender = ({ onNavigate }) => {
   const [cargoType, setCargoType] = useState('general');
   const [priority, setPriority] = useState('normal');
   const [recommendations, setRecommendations] = useState([]);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const selected = pickSelected(recommendations, selectedIdx);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState({ source: '', dest: '' });
@@ -74,6 +80,7 @@ const RouteRecommender = ({ onNavigate }) => {
         setClosedHubs([]);
       } else {
         setRecommendations(data.recommendations ?? []);
+        setSelectedIdx(0);
         setClosedHubs(data.closed_hubs ?? []);
       }
     } catch (err) {
@@ -268,7 +275,11 @@ const RouteRecommender = ({ onNavigate }) => {
 
         <div className="path-grid">
           {recommendations.map((rec, idx) => (
-            <div key={idx} className="path-card">
+            <div key={idx} className="path-card" role="button" tabIndex={0}
+              aria-pressed={idx === selectedIdx}
+              onClick={() => setSelectedIdx(idx)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedIdx(idx); } }}
+              style={{cursor: 'pointer', ...(idx === selectedIdx && {borderColor: '#3b82f6', boxShadow: '0 0 0 1px #3b82f6'})}}>
               <div className="card-header">
                 <span className={`persona-badge ${
                   rec.persona === 'FASTEST' ? 'tag-fastest' :
@@ -321,20 +332,23 @@ const RouteRecommender = ({ onNavigate }) => {
       <aside className="sidebar-right">
         <h2 className="panel-title"><Layers size={14} /> Decision Integrity Audit</h2>
         
-        {recommendations.length > 0 ? (
+        {selected ? (
           <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+            <div style={{fontSize: '0.75rem', color: '#94a3b8'}}>
+              Showing <span style={{fontWeight: 800, color: '#f8fafc'}}>{selected.persona}</span> · click a route card to audit it
+            </div>
             <div className="audit-trace-box" style={{borderLeft: '4px solid #3b82f6'}}>
                <div style={{marginBottom: '0.5rem', fontWeight: 700, color: '#f8fafc'}}>Forensic ETA Audit</div>
-               <div>Transit: {recommendations[0].audit_trace.eta.transit}h</div>
-               <div>Transfer: +{recommendations[0].audit_trace.eta.transfer}h</div>
-               <div>Scenario Impact: {recommendations[0].audit_trace.eta.scenario > 0 ? `+${recommendations[0].audit_trace.eta.scenario}h` : 'None'}</div>
+               <div>Transit: {hours(selected.audit_trace.eta.transit)}h</div>
+               <div>Transfer: +{hours(selected.audit_trace.eta.transfer)}h</div>
+               <div>Scenario Impact: {selected.audit_trace.eta.scenario > 0 ? `+${hours(selected.audit_trace.eta.scenario)}h` : 'None'}</div>
             </div>
 
             <div className="audit-trace-box" style={{borderLeft: '4px solid #10b981'}}>
                <div style={{marginBottom: '0.5rem', fontWeight: 700, color: '#f8fafc'}}>Cost Composition</div>
-               <div>Landed Base: ${recommendations[0].audit_trace.cost.transit.toLocaleString()}</div>
-               <div>Transfer Fees: ${recommendations[0].audit_trace.cost.transfer.toLocaleString()}</div>
-               <div>Risk Premium: ${recommendations[0].audit_trace.cost.scenario.toLocaleString()}</div>
+               <div>Landed Base: ${usd(selected.audit_trace.cost.transit)}</div>
+               <div>Transfer Fees: ${usd(selected.audit_trace.cost.transfer)}</div>
+               <div>Risk Premium: ${usd(selected.audit_trace.cost.scenario)}</div>
             </div>
 
             <div className="audit-trace-box" style={{borderLeft: '4px solid #f59e0b'}}>

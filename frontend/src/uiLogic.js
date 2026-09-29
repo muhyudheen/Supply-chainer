@@ -20,6 +20,11 @@ export function buildOverrides({ avoid = [], costCeiling = '', maxTransitDays = 
   return Object.keys(overrides).length > 0 ? overrides : null;
 }
 
+// The route card the user picked; the first card if the index is out of range (e.g. after a new search).
+export function pickSelected(recommendations, index) {
+  return recommendations[index] ?? recommendations[0] ?? null;
+}
+
 // Display names for hub ids (e.g. the response's closed_hubs), falling back to the id itself.
 export function hubNames(ids, namesById) {
   return (ids ?? []).map(id => namesById[id] ?? id);
