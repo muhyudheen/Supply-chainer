@@ -37,8 +37,8 @@ class SupplierScorer:
             if active_disruptions:
                 for node, impact in active_disruptions.items():
                     if node == s['location_hub'] or node in s.get('transit_choke_points', []):
-                        # Apply lead time penalty: 10% of delay hours converted to days
-                        penalty_days = impact['delay'] / 24.0 * 0.5 
+                        # P1: the full delay the scenario announces, in days (the router applies the same delay)
+                        penalty_days = impact['delay'] / 24.0
                         effective_lead_time += penalty_days
                         disruption_penalty += penalty_days
 
