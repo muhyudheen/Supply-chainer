@@ -119,8 +119,11 @@ def create_multimodal_network():
                 t = _travel_time(dist, mode)
                 cost = dist * MODE_PROFILES[mode]["cost_per_km"]
                 
-                G.add_edge(u_vnode, v_vnode, baseline_time=t, distance=round(dist, 1), 
-                           transport_mode=mode, type="transit", cost=cost)
+                # Links are listed once in the data but work both ways (N7): add the reverse too.
+                for a, b in ((u_vnode, v_vnode), (v_vnode, u_vnode)):
+                    if not G.has_edge(a, b):
+                        G.add_edge(a, b, baseline_time=t, distance=round(dist, 1),
+                                   transport_mode=mode, type="transit", cost=cost)
 
     # 4. Local Road Auto-wire (<200km)
     for i, h1 in enumerate(hubs):
