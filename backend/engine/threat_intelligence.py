@@ -3,6 +3,7 @@ import joblib
 import os
 import torch
 import json
+import re
 import time
 from typing import List, Dict, Any, Optional, Tuple
 import pandas as pd
@@ -188,18 +189,18 @@ class ContrastiveNLPEngine:
 class CARFFilter:
     """Stage 3: TRUE CARF (Context-Aware Relevance Filter)."""
     def __init__(self):
-        self.relevance_map = {"air": ["airport", "flight", "airspace", "aviation", "sky", "terminal"],
-                              "sea": ["port", "vessel", "ship", "canal", "ocean", "maritime", "dock"],
+        self.relevance_map = {"air": ["airport", "flight", "airspace", "aviation", "sky"],
+                              "sea": ["port", "vessel", "ship", "canal", "ocean", "maritime", "dock", "berth"],
                               "rail": ["rail", "track", "locomotive", "station"],
                               "road": ["highway", "truck", "traffic", "bridge", "road", "delivery"]}
 
     def apply_filter(self, semantic_score: float, news_context: str, transport_mode: str) -> float:
         if semantic_score <= 0: return 0.0
-        news_words = news_context.lower().split()
-        if transport_mode == "sea" and any(kw in news_words for kw in ["port", "vessel", "canal", "ocean", "maritime"]):
-            if not any(kw in news_words for kw in ["airport", "flight"]): return 0.0
-        if transport_mode == "air" and any(kw in news_words for kw in ["airport", "flight"]):
-            if not any(kw in news_words for kw in ["port", "vessel", "maritime"]): return 0.0
+        words = set(re.findall(r"[a-z]+", news_context.lower()))   # whole words, punctuation ignored ("canal.")
+        words |= {w[:-1] for w in words if w.endswith("s")}        # simple plurals ("ports" -> "port")
+        mentioned = {mode for mode, keywords in self.relevance_map.items() if words & set(keywords)}
+        if mentioned and transport_mode not in mentioned:
+            return 0.0  # the news is only about other transport modes
         return semantic_score
 
     def max_pool_threats(self, scores: List[float]) -> float:
