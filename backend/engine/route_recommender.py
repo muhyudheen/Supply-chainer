@@ -82,6 +82,8 @@ class RouteRecommender:
         # 2. Scenario Activation
         active_scenario = self.scenario_mgr.activate_scenario(scenario)
         disruptions = self.scenario_mgr.get_active_disruptions()
+        # R9: threat 1.0 means closed, not just slow: those hubs are taken out of the graph
+        closed_hubs = sorted(p for p, d in disruptions.items() if d["threat"] >= 1.0)
         
         # 3. Persona Optimization
         candidates = []
@@ -90,8 +92,8 @@ class RouteRecommender:
                 # Build Persona Graph (Applying STRICT constraints)
                 G_p = self.unified_graph.copy()
                 
-                # Apply Hub Avoidance (Prune all virtual nodes for the hub)
-                for hub_id in avoid_hubs:
+                # Apply Hub Avoidance and closures (Prune all virtual nodes for the hub)
+                for hub_id in [*avoid_hubs, *closed_hubs]:
                     nodes_to_remove = [n for n, d in G_p.nodes(data=True) if d.get("physical_id") == hub_id]
                     G_p.remove_nodes_from(nodes_to_remove)
                 
@@ -231,6 +233,7 @@ class RouteRecommender:
         return {
             "origin": source, "destination": destination,
             "active_scenario": active_scenario["name"] if active_scenario else None,
+            "closed_hubs": closed_hubs,
             "recommendations": final[:3]
         }
 
