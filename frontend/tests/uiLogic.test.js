@@ -1,0 +1,22 @@
+// Run with: npm test --prefix frontend (Node's built-in test runner, no extra packages).
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import * as ui from '../src/uiLogic.js';
+
+const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8');
+
+// F7: clearing an inventory box must not send null to /api/suppliers
+test('F7: parseCount accepts whole non-negative numbers only', () => {
+  for (const text of ['', 'abc', '-5', '12.5', '1e3']) assert.equal(ui.parseCount(text), null, text);
+  assert.equal(ui.parseCount('0'), 0);
+  assert.equal(ui.parseCount('1500'), 1500);
+  assert.equal(ui.parseCount(' 42 '), 42);
+});
+
+test('F7: supplier page survives a failed or error response', () => {
+  const src = source('SupplierIntelligence.jsx');
+  assert.ok(!src.includes('parseInt('), 'inputs must not use parseInt');
+  assert.ok(src.includes('data.suppliers ?? []'));
+  assert.ok(src.includes('res.ok') && src.includes('data.error'));
+});

@@ -3,10 +3,16 @@ import {
   Shield, AlertTriangle, Clock, TrendingUp, Info, 
   BarChart3, Package, Truck, Database, Activity, CheckCircle2, ShieldAlert, Zap
 } from 'lucide-react';
+import { parseCount } from './uiLogic.js';
 
 export default function SupplierIntelligence({ onNavigate }) {
   const [suppliers, setSuppliers] = useState([]);
   const [advice, setAdvice] = useState(null);
+  const [error, setError] = useState(null);
+  // The boxes hold the raw text so they can be emptied while typing; the numbers sent to the
+  // backend only change when the text is a valid count, so an empty box never sends null (F7).
+  const [inventoryText, setInventoryText] = useState('1000');
+  const [safetyStockText, setSafetyStockText] = useState('1500');
   const [inventory, setInventory] = useState(1000);
   const [safetyStock, setSafetyStock] = useState(1500);
   const [forecast, setForecast] = useState(800);
@@ -44,11 +50,23 @@ export default function SupplierIntelligence({ onNavigate }) {
           scenario
         })
       });
+      if (!res.ok) throw new Error(`Supplier request failed (HTTP ${res.status})`);
       const data = await res.json();
-      setSuppliers(data.suppliers);
-      setAdvice(data.advice);
-    } catch (e) { console.error(e); }
+      if (data.error) throw new Error(data.error);
+      setSuppliers(data.suppliers ?? []);
+      setAdvice(data.advice ?? null);
+      setError(null);
+    } catch (e) {
+      console.error(e);
+      setError(e.message);
+    }
     setLoading(false);
+  };
+
+  const onCountChange = (setText, setValue) => (e) => {
+    setText(e.target.value);
+    const n = parseCount(e.target.value);
+    if (n !== null) setValue(n);
   };
 
   return (
@@ -81,8 +99,8 @@ export default function SupplierIntelligence({ onNavigate }) {
         <div className="sc-input-group">
           <label className="sc-label">Inventory State (Units)</label>
           <div className="sc-select-grid">
-            <input type="number" value={inventory} onChange={e => setInventory(parseInt(e.target.value))} className="sc-input" style={{paddingLeft: '1rem'}} placeholder="Inventory" />
-            <input type="number" value={safetyStock} onChange={e => setSafetyStock(parseInt(e.target.value))} className="sc-input" style={{paddingLeft: '1rem'}} placeholder="Safety Target" />
+            <input type="number" min="0" step="1" value={inventoryText} onChange={onCountChange(setInventoryText, setInventory)} className="sc-input" style={{paddingLeft: '1rem'}} placeholder="Inventory" />
+            <input type="number" min="0" step="1" value={safetyStockText} onChange={onCountChange(setSafetyStockText, setSafetyStock)} className="sc-input" style={{paddingLeft: '1rem'}} placeholder="Safety Target" />
           </div>
         </div>
 
@@ -94,6 +112,8 @@ export default function SupplierIntelligence({ onNavigate }) {
           </select>
         </div>
       </div>
+
+      {error && <div style={{color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: '8px', border: '1px solid #ef4444', marginBottom: '1rem'}}>{error}{suppliers.length > 0 && '. Showing the last results.'}</div>}
 
       <div className="sc-results-grid" style={{gridTemplateColumns: '1fr 2fr'}}>
         {/* Advice Card */}
