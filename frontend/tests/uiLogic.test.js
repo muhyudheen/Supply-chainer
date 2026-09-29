@@ -20,3 +20,26 @@ test('F7: supplier page survives a failed or error response', () => {
   assert.ok(src.includes('data.suppliers ?? []'));
   assert.ok(src.includes('res.ok') && src.includes('data.error'));
 });
+
+// F2: "Strategic Overrides" must be real inputs sent to /api/recommend
+test('F2: buildOverrides sends only the limits that are set', () => {
+  assert.equal(ui.buildOverrides({ avoid: [], costCeiling: '', maxTransitDays: '' }), null);
+  assert.deepEqual(
+    ui.buildOverrides({ avoid: ['CHOKE-SUEZ'], costCeiling: '5000', maxTransitDays: '30' }),
+    { avoid_chokepoints: ['CHOKE-SUEZ'], cost_ceiling: 5000, max_delay: 30 });
+  // a blank or zero limit is left out, so the backend keeps its default instead of getting null
+  assert.deepEqual(ui.buildOverrides({ avoid: [], costCeiling: '0', maxTransitDays: '12' }), { max_delay: 12 });
+});
+
+test('F2: closed hubs are named for the banner', () => {
+  const names = { 'CHOKE-SUEZ': 'Suez Canal' };
+  assert.deepEqual(ui.hubNames(['CHOKE-SUEZ', 'PORT-X'], names), ['Suez Canal', 'PORT-X']);
+  assert.deepEqual(ui.hubNames(undefined, names), []);
+});
+
+test('F2: the fixed "Auto-bypass" text is gone and overrides are sent', () => {
+  const src = source('RouteRecommender.jsx');
+  assert.ok(!src.includes('Auto-bypass enabled'));
+  assert.ok(src.includes('overrides: buildOverrides('));
+  assert.ok(src.includes('closed_hubs'));
+});

@@ -6,6 +6,7 @@ import {
   Filter, ShieldAlert, Zap, Globe, Package,
   ArrowRightLeft, AlertCircle, BarChart3, Activity, Layers, Terminal
 } from 'lucide-react';
+import { buildOverrides, hubNames, parseCount } from './uiLogic.js';
 
 const RouteRecommender = ({ onNavigate }) => {
   const [source, setSource] = useState('');
@@ -21,6 +22,13 @@ const RouteRecommender = ({ onNavigate }) => {
   const [searchQuery, setSearchQuery] = useState({ source: '', dest: '' });
   const [searchResults, setSearchResults] = useState({ source: [], dest: [] });
   const [scenarios, setScenarios] = useState([]);
+  // Strategic overrides (F2): chokepoints to avoid, cost ceiling (USD), max total transit time (days)
+  const [chokepoints, setChokepoints] = useState([]);
+  const [hubNameById, setHubNameById] = useState({});
+  const [avoid, setAvoid] = useState([]);
+  const [costCeiling, setCostCeiling] = useState('');
+  const [maxTransitDays, setMaxTransitDays] = useState('');
+  const [closedHubs, setClosedHubs] = useState([]);
 
   useEffect(() => {
     // Pull the live scenario list from the backend instead of hardcoding IDs here,
@@ -29,7 +37,17 @@ const RouteRecommender = ({ onNavigate }) => {
       .then(r => r.json())
       .then(data => setScenarios(data))
       .catch(e => console.error("Failed to load scenarios", e));
+    fetch('/api/hubs')
+      .then(r => r.json())
+      .then(hubs => {
+        setChokepoints(hubs.filter(h => h.type === 'choke_point'));
+        setHubNameById(Object.fromEntries(hubs.map(h => [h.id, h.display_name])));
+      })
+      .catch(e => console.error("Failed to load hubs", e));
   }, []);
+
+  const toggleAvoid = (id) =>
+    setAvoid(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const getRecommendations = async () => {
     setLoading(true);
@@ -45,15 +63,18 @@ const RouteRecommender = ({ onNavigate }) => {
           routing_policy: routingPolicy,
           cargo_type: cargoType,
           priority: priority,
-          scenario: operationalConfig !== 'NORMAL' ? operationalConfig : null
+          scenario: operationalConfig !== 'NORMAL' ? operationalConfig : null,
+          overrides: buildOverrides({ avoid, costCeiling, maxTransitDays })
         })
       });
       const data = await res.json();
       if (data.error) {
         setError(data.error);
         setRecommendations([]);
+        setClosedHubs([]);
       } else {
-        setRecommendations(data.recommendations);
+        setRecommendations(data.recommendations ?? []);
+        setClosedHubs(data.closed_hubs ?? []);
       }
     } catch (err) {
       setError("Engine connection failed. Verify backend status.");
@@ -184,8 +205,35 @@ const RouteRecommender = ({ onNavigate }) => {
 
         <div className="sc-input-group">
           <label className="sc-label">Strategic Overrides</label>
-          <div style={{background: 'rgba(59, 130, 246, 0.05)', padding: '0.75rem', borderRadius: '8px', border: '1px solid #1e293b', fontSize: '0.75rem', color: '#64748b'}}>
-            Auto-bypass enabled for verified chokepoints.
+          <div style={{background: 'rgba(59, 130, 246, 0.05)', padding: '0.75rem', borderRadius: '8px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.6rem'}}>
+            <span style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700}}>Avoid chokepoints{avoid.length > 0 && ` (${avoid.length})`}</span>
+            <div style={{display: 'flex', flexWrap: 'wrap', gap: '4px'}}>
+              {chokepoints.map(c => {
+                const on = avoid.includes(c.id);
+                return (
+                  <button key={c.id} type="button" aria-pressed={on} onClick={() => toggleAvoid(c.id)}
+                    style={{fontSize: '0.7rem', padding: '3px 8px', borderRadius: '999px', cursor: 'pointer',
+                      border: `1px solid ${on ? '#ef4444' : '#1e293b'}`,
+                      background: on ? 'rgba(239, 68, 68, 0.15)' : 'transparent',
+                      color: on ? '#fca5a5' : '#94a3b8'}}>
+                    {c.display_name}
+                  </button>
+                );
+              })}
+            </div>
+            <label style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700, display: 'flex', flexDirection: 'column', gap: '4px'}}>
+              Cost ceiling (USD)
+              <input type="number" min="0" step="1" value={costCeiling} onChange={e => setCostCeiling(e.target.value)}
+                className="sc-input" placeholder="No limit" />
+            </label>
+            <label style={{fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700, display: 'flex', flexDirection: 'column', gap: '4px'}}>
+              Max transit time (days)
+              <input type="number" min="0" step="1" value={maxTransitDays} onChange={e => setMaxTransitDays(e.target.value)}
+                className="sc-input" placeholder="No limit" />
+            </label>
+            {[costCeiling, maxTransitDays].some(t => t.trim() !== '' && !parseCount(t)) && (
+              <span style={{fontSize: '0.7rem', color: '#f59e0b'}}>Limits must be whole numbers above 0; other values are ignored.</span>
+            )}
           </div>
         </div>
 
@@ -202,6 +250,16 @@ const RouteRecommender = ({ onNavigate }) => {
             <div>
               <span style={{fontWeight: 800, fontSize: '0.75rem', display: 'block'}}>ACTIVE GLOBAL DISRUPTION DETECTED</span>
               <span style={{fontSize: '0.875rem'}}>{(scenarios.find(s => s.id === operationalConfig)?.name) || operationalConfig} logic active in unified solver.</span>
+            </div>
+          </div>
+        )}
+
+        {closedHubs.length > 0 && (
+          <div className="scenario-banner animate-slide-in">
+            <ShieldAlert size={20} />
+            <div>
+              <span style={{fontWeight: 800, fontSize: '0.75rem', display: 'block'}}>CLOSED BY SCENARIO</span>
+              <span style={{fontSize: '0.875rem'}}>{hubNames(closedHubs, hubNameById).join(', ')} closed. These routes avoid {closedHubs.length > 1 ? 'them' : 'it'}.</span>
             </div>
           </div>
         )}
