@@ -44,6 +44,17 @@ def load_canonical_hubs():
             return json.load(f)
     return []
 
+def load_sea_network():
+    path = os.path.join(os.path.dirname(__file__), '..', 'data',
+                        'sea_network.json')
+    with open(path, 'r') as f:
+        return json.load(f)
+    
+def _lane_distance(points):
+    """Length of a sea lane that follows waypoints: the sum of the straight segments between them."""
+    return sum(_haversine(a[0], a[1], b[0], b[1]) for a, b in zip(points, points[1:]))
+
+
 TRANSFER_PROFILES = {
     "port_to_rail": {"delay": 8.0, "cost": 180, "risk": 0.05},
     "road_to_air": {"delay": 6.0, "cost": 150, "risk": 0.02},
@@ -53,6 +64,10 @@ TRANSFER_PROFILES = {
     "default": {"delay": 4.0, "cost": 100, "risk": 0.03}
 }
 
+# Country pairs within 200 km of each other but separated by sea: no truck road between them (N11)
+WATER_SEPARATED = [{"UK", "France"}, {"UK", "Netherlands"}, {"Morocco", "Spain"},
+                   {"Indonesia", "Singapore"}, {"Indonesia", "Malaysia"}]
+
 def create_multimodal_network():
     """
     Supplychainer Unified Multimodal Optimization Graph.
@@ -61,6 +76,20 @@ def create_multimodal_network():
     G = nx.DiGraph()
     hubs = load_canonical_hubs()
     hub_lookup = {h["id"]: h for h in hubs}
+    
+    # Sea topology (N9): basins joined only through gate chokepoints; trunk lanes follow waypoints
+    sea = load_sea_network()
+    gates = sea["gates"]
+    basins_of = {h: {b} for h, b in sea["basins"].items()}
+    basins_of.update({g: set(bs) for g, bs in gates.items()})
+    open_pairs = {frozenset(p) for p in sea["open_basin_pairs"]}
+    trunk = {n for lane in sea["trunk_lanes"] for n in (lane["from"], lane["to"])}
+
+    def sea_link_allowed(a, b):
+        if a in trunk and b in trunk:
+            return False  # replaced by a trunk lane that goes around land
+        ba, bb = basins_of.get(a, set()), basins_of.get(b, set())
+        return bool(ba & bb) or any(frozenset((x, y)) in open_pairs for x in ba for y in bb)
 
     # 1. Add Mode-Specific Virtual Nodes
     # Each hub H with modes M gets nodes H:m1, H:m2...
@@ -110,6 +139,9 @@ def create_multimodal_network():
             v_base = conn["to"]
             mode = conn["mode"]
             
+            if mode == 'sea' and not sea_link_allowed(u_base, v_base):
+                continue
+            
             u_vnode = f"{u_base}:{mode}"
             v_vnode = f"{v_base}:{mode}"
             
@@ -125,13 +157,37 @@ def create_multimodal_network():
                         G.add_edge(a, b, baseline_time=t, distance=round(dist, 1),
                                    transport_mode=mode, type="transit", cost=cost)
 
+    # 3b. Trunk sea lanes through the chokepoints, following waypoints around land (N9, N4)
+    for lane in sea["trunk_lanes"]:
+        a, b = hub_lookup[lane["from"]], hub_lookup[lane["to"]]
+        dist = _lane_distance([(a["lat"], a["lon"]), *lane["waypoints"], (b["lat"], b["lon"])])
+        for u, v in ((a["id"], b["id"]), (b["id"], a["id"])):
+            G.add_edge(f"{u}:sea", f"{v}:sea", baseline_time=_travel_time(dist, "sea"), distance=round(dist, 1),
+                       transport_mode="sea", type="transit", cost=dist * MODE_PROFILES["sea"]["cost_per_km"])
+
+    # 3c. A sea hub left with no sea link joins every trunk hub or gate in its basin (e.g. Jeddah -> Bab-el-Mandeb, Suez).
+    #     Hubs whose basin has none stay unconnected: the Caspian has no sea route to the ocean.
+    anchors = trunk | set(gates)
+    for hub_id, basins in basins_of.items():
+        node = f"{hub_id}:sea"
+        if hub_id in anchors or node not in G:
+            continue
+        if any(G[node][n]["transport_mode"] == "sea" for n in G.successors(node)):
+            continue
+        h = hub_lookup[hub_id]
+        for x in anchors:
+            if basins_of.get(x, set()) & basins:
+                dist = _haversine(h["lat"], h["lon"], hub_lookup[x]["lat"], hub_lookup[x]["lon"])
+                for u, v in ((hub_id, x), (x, hub_id)):
+                    G.add_edge(f"{u}:sea", f"{v}:sea", baseline_time=_travel_time(dist, "sea"), distance=round(dist, 1),
+                               transport_mode="sea", type="transit", cost=dist * MODE_PROFILES["sea"]["cost_per_km"])
     # 4. Local Road Auto-wire (<200km)
     for i, h1 in enumerate(hubs):
         if "road" not in h1["modes"]: continue
         for h2 in hubs[i+1:]:
             if "road" not in h2["modes"]: continue
             d = _haversine(h1["lat"], h1["lon"], h2["lat"], h2["lon"])
-            if d < 200:
+            if d < 200 and {h1["country"], h2["country"]} not in WATER_SEPARATED:
                 u, v = f"{h1['id']}:road", f"{h2['id']}:road"
                 if G.has_node(u) and G.has_node(v) and not G.has_edge(u, v):
                     t = _travel_time(d, "road")
