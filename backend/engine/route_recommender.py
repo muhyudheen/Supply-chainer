@@ -45,15 +45,13 @@ class RouteRecommender:
                 raise RuntimeError("NLP engine failed to load; see the [NLP ENGINE] message above")
 
             
-            # Enrich unified graph with baseline intelligence
+            # Baseline intelligence: no live news has been fetched for any edge yet, so there is
+            # no evidence of a threat. Scoring the invented fallback sentences ("Maritime congestion
+            # reported...") would put a fake threat on every edge of a mode (W1).
             for u, v, d in self.unified_graph.edges(data=True):
-                mode = d.get("transport_mode", "road")
-                if mode == "transfer": continue
-                news = self.news_ingestor.fallback_news.get(mode, "Normal conditions.")
-                score = self.nlp.get_semantic_score(news)
-                threat = self.carf.apply_filter(score, news, mode)
-                self.unified_graph[u][v]["base_threat"] = threat
-                self.unified_graph[u][v]["base_news"] = news
+                if d.get("transport_mode") == "transfer": continue
+                self.unified_graph[u][v]["base_threat"] = 0.0
+                self.unified_graph[u][v]["base_news"] = "No live news for this corridor"
                 
             self.is_warmed_up = True
             print("[WARMUP] Unified Calibration Complete.")
