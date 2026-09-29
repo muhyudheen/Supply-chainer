@@ -1,4 +1,5 @@
 from fastapi import FastAPI, WebSocket, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional, List
 import asyncio
@@ -162,13 +163,15 @@ def recommend_routes(req: RecommendRequest):
         scenario=req.scenario,
         overrides=req.overrides
     )
+    if "error" in result:  # M13: errors are not HTTP 200
+        return JSONResponse({"error": result["error"]}, status_code=result.get("status", 400))
     return result
 
 @app.post("/api/suppliers")
 def get_suppliers(req: SourcingRequest):
     # Get active disruptions from scenario manager
     if req.scenario and req.scenario not in scenario_mgr.SCENARIOS:
-        return {"error": f"Unknown scenario '{req.scenario}'"}
+        return JSONResponse({"error": f"Unknown scenario '{req.scenario}'"}, status_code=400)
     active_disruptions = scenario_mgr.get_disruptions(req.scenario)
     
     ranked_suppliers = supplier_scorer.get_ranked_suppliers(req.category, active_disruptions)

@@ -74,14 +74,15 @@ class RouteRecommender:
         res_s = self.resolver.resolve_entry_nodes(source)
         res_d = self.resolver.resolve_entry_nodes(destination)
         
-        if "error" in res_s: return {"error": res_s["error"]}
-        if "error" in res_d: return {"error": res_d["error"]}
+        # M13: "status" is the HTTP code main.py sends with the error (400 bad input, 404 no route)
+        if "error" in res_s: return {"error": res_s["error"], "status": 400}
+        if "error" in res_d: return {"error": res_d["error"], "status": 400}
         
         SRC, DST = "__SOURCE__", "__DEST__"
         
         # 2. Scenario Activation
         if scenario and scenario not in self.scenario_mgr.SCENARIOS:  # M7: a typo must not mean "no scenario"
-            return {"error": f"Unknown scenario '{scenario}'. Valid: {', '.join(self.scenario_mgr.SCENARIOS)}"}
+            return {"error": f"Unknown scenario '{scenario}'. Valid: {', '.join(self.scenario_mgr.SCENARIOS)}", "status": 400}
         active_scenario = self.scenario_mgr.SCENARIOS.get(scenario) if scenario else None
         disruptions = self.scenario_mgr.get_disruptions(scenario)
         # R9: threat 1.0 means closed, not just slow: those hubs are taken out of the graph
@@ -235,7 +236,7 @@ class RouteRecommender:
                 print(f"[ROUTING ERROR] {persona}: {e}")
 
         if not candidates:
-            return {"error": "No valid multimodal route établi under current strategic constraints."}
+            return {"error": "No valid multimodal route found under the current constraints.", "status": 404}
 
         # Deduplicate and sort
         final = []
