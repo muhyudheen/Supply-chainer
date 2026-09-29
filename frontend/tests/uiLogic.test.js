@@ -125,6 +125,24 @@ test('F3: editing the box clears the chosen hub', () => {
   assert.ok(src.includes("setHub[type]('')"), 'editing the text must drop the hub picked earlier');
 });
 
+// F8: the supplier table shows the backend's reliability and penalties, not 1 - decision score
+test('F8: supplierFacts reads reliability, penalties and decision score from the audit trace', () => {
+  const hit = { decision_score: 0.614, audit_trace: {
+    scores: { reliability: 0.66 }, penalties: { risk_inflation: 0.26, lead_time_impact: 5.0 } } };
+  assert.deepEqual(ui.supplierFacts(hit), {
+    reliability: 66, reliabilityPenalty: 26, leadTimePenalty: 5, decisionScore: 61 });
+  const calm = { decision_score: 0.8, audit_trace: {
+    scores: { reliability: 0.92 }, penalties: { risk_inflation: 0, lead_time_impact: 0 } } };
+  assert.deepEqual(ui.supplierFacts(calm), {
+    reliability: 92, reliabilityPenalty: 0, leadTimePenalty: 0, decisionScore: 80 });
+});
+
+test('F8: the fake "Risk Score" column is gone', () => {
+  const src = source('SupplierIntelligence.jsx');
+  assert.ok(!src.includes('Risk Score') && !src.includes('1 - s.decision_score'));
+  assert.ok(src.includes('supplierFacts(s)'));
+});
+
 // F10: the /ws engine status is shown, including a failed NLP warm-up
 test('F10: engineStatusView maps each /ws state to a label and tone', () => {
   assert.equal(ui.engineStatusView(null).tone, 'muted');

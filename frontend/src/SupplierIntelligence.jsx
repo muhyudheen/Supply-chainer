@@ -4,7 +4,7 @@ import {
   BarChart3, Package, Truck, Database, Activity, CheckCircle2, ShieldAlert, Zap
 } from 'lucide-react';
 import EngineStatus from './EngineStatus.jsx';
-import { parseCount } from './uiLogic.js';
+import { parseCount, supplierFacts } from './uiLogic.js';
 
 export default function SupplierIntelligence({ onNavigate, engineStatus }) {
   const [suppliers, setSuppliers] = useState([]);
@@ -147,17 +147,17 @@ export default function SupplierIntelligence({ onNavigate, engineStatus }) {
               <thead>
                 <tr style={{borderBottom: '1px solid #1e293b', textAlign: 'left'}}>
                   <th style={{padding: '16px', color: '#94a3b8'}}>Supplier</th>
-                  <th style={{padding: '16px', color: '#94a3b8'}}>Risk Score</th>
+                  <th style={{padding: '16px', color: '#94a3b8'}} title="Historical reliability minus the scenario's risk inflation">Reliability</th>
                   <th style={{padding: '16px', color: '#94a3b8'}}>Effective Lead Time</th>
                   <th style={{padding: '16px', color: '#94a3b8'}}>Decision Score</th>
                 </tr>
               </thead>
               <tbody>
                 {suppliers.map(s => {
-                  // decision_score (0-1) is the backend's ranking metric (cost + lead time +
-                  // disruption-adjusted reliability). We derive a 0-100% "risk" as its inverse
-                  // since the backend doesn't expose a separate risk_score field.
-                  const riskPct = Math.round((1 - s.decision_score) * 100);
+                  // Reliability and penalties come from the backend's audit_trace; decision_score is its
+                  // ranking (cost 30%, lead time 30%, reliability 40%), shown as it is rather than as a "risk" (F8).
+                  const f = supplierFacts(s);
+                  const penaltyStyle = {fontSize: '11px', color: '#f59e0b', marginTop: '2px'};
                   return (
                     <tr key={s.id} style={{borderBottom: '1px solid #0f172a'}}>
                       <td style={{padding: '16px'}}>
@@ -165,15 +165,22 @@ export default function SupplierIntelligence({ onNavigate, engineStatus }) {
                         <div style={{fontSize: '11px', color: '#64748b'}}>{s.location_hub}</div>
                       </td>
                       <td style={{padding: '16px'}}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '6px', color: riskPct > 50 ? '#ef4444' : '#10b981'}}>
-                          <Activity size={14} /> {riskPct}%
+                        <div style={{display: 'flex', alignItems: 'center', gap: '6px', color: f.reliability < 50 ? '#ef4444' : '#10b981'}}>
+                          <Activity size={14} /> {f.reliability}%
                         </div>
+                        {f.reliabilityPenalty > 0 && <div style={penaltyStyle}>−{f.reliabilityPenalty} pts from disruption</div>}
                       </td>
-                      <td style={{padding: '16px', fontFamily: 'JetBrains Mono'}}>{s.effective_lead_time} days</td>
+                      <td style={{padding: '16px', fontFamily: 'JetBrains Mono'}}>
+                        {s.effective_lead_time} days
+                        {f.leadTimePenalty > 0 && <div style={{...penaltyStyle, fontFamily: 'inherit'}}>+{f.leadTimePenalty} days from disruption</div>}
+                      </td>
                       <td style={{padding: '16px'}}>
-                         <div style={{height: '6px', width: '60px', background: '#1e293b', borderRadius: '3px', overflow: 'hidden'}}>
-                           <div style={{height: '100%', width: `${Math.round(s.decision_score * 100)}%`, background: '#3b82f6'}}></div>
-                         </div>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                          <div style={{height: '6px', width: '60px', background: '#1e293b', borderRadius: '3px', overflow: 'hidden'}}>
+                            <div style={{height: '100%', width: `${f.decisionScore}%`, background: '#3b82f6'}}></div>
+                          </div>
+                          <span style={{fontFamily: 'JetBrains Mono', fontSize: '12px'}}>{f.decisionScore}</span>
+                        </div>
                       </td>
                     </tr>
                   );

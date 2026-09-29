@@ -79,6 +79,18 @@ export function endpointFor(hubId, typedText) {
   return hubId || typedText.trim();
 }
 
+// What the supplier table shows (F8), all from the backend's audit_trace: reliability after disruptions
+// (0-100), the points a scenario took off it, the days it added to lead time, and the ranking score (0-100).
+export function supplierFacts(s) {
+  const t = s.audit_trace ?? {};
+  return {
+    reliability: Math.round((t.scores?.reliability ?? s.historical_reliability ?? 0) * 100),
+    reliabilityPenalty: Math.round((t.penalties?.risk_inflation ?? 0) * 100),
+    leadTimePenalty: Math.round((t.penalties?.lead_time_impact ?? 0) * 10) / 10,
+    decisionScore: Math.round(s.decision_score * 100),
+  };
+}
+
 // Display names for hub ids (e.g. the response's closed_hubs), falling back to the id itself.
 export function hubNames(ids, namesById) {
   return (ids ?? []).map(id => namesById[id] ?? id);
