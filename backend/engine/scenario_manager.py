@@ -48,7 +48,7 @@ class ScenarioManager:
             "description": "Massive cargo backlog at DXB/DWC.",
             "affected_nodes": ["AIR-DUBAI"],
             "threat_level": 0.65,
-            "delay_hours": 24,
+            "delay_hours": 48,
             "reason": "Regional cargo surge exceeding ground handling capacity. 48h clearance backlog.",
             "mode": "air"
         },
