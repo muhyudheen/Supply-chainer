@@ -43,9 +43,7 @@ To avoid merge conflicts, only edit files you own. If you need a change in someo
 
 - Two infrastructure commits: node_modules untracked, and the uv project added.
 - Bug list and bug report committed (`4699d1e`).
-- Round 1 is backend-only: the NLP engine, `BUG_REPORT.md` §1. Its tests are in `backend/tests/test_round1.py`.
-  - **Done:** fix 1 (TI1, CPU load) and fix 2 (TI2/R3, warm-up failure reported).
-  - **In progress by muhyudheen:** fixes 3–6. TI3 plus the new linear score scale (margin ≤ 0.04 → 0, margin ≥ 0.6 → 1), TI5 per-chunk margin, TI7–TI9 CARF rewrite, and W1 (no live news means threat 0).
+- **Round 1 is done** (NLP engine, `BUG_REPORT.md` §1). All 13 tests in `backend/tests/test_round1.py` pass. The fixes, one commit each: TI1 CPU load, TI2/R3 warm-up failure reported, TI3 inverted floor plus a linear score scale (margin ≤ 0.04 → 0, margin ≥ 0.6 → 1, via `score_from_margin`), TI5 per-chunk margin, TI7–TI9 CARF rewrite, and W1 (no live news means threat 0). The NLP threat score is now 0–1 on that linear scale; the model rebuild should use the same scale for its news-severity feature.
 - **Next for the backend:** round 2, the graph (N7, N9, N10, N11, L1). Then round 3, scenarios (R9, S2).
 
 ## 4. Your tasks, in order
