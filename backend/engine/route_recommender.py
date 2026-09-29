@@ -226,7 +226,6 @@ class RouteRecommender:
                     "total_cost": round(total_cost, 2),
                     "threat_level": round(max_threat, 2),
                     "audit_trace": trace,
-                    "explanation": self._generate_forensic_explanation(persona, trace, max_threat),
                     "override_applied": bool(avoid_hubs or cost_ceiling < 999999)
                 })
 
@@ -237,6 +236,11 @@ class RouteRecommender:
 
         if not candidates:
             return {"error": "No valid multimodal route found under the current constraints.", "status": 404}
+
+        # R18: explanations compare the routes against each other, using only real numbers
+        by_persona = {c["persona"]: c for c in candidates}
+        for c in candidates:
+            c["explanation"] = self._explain(c, by_persona)
 
         # Deduplicate and sort
         final = []
@@ -254,17 +258,23 @@ class RouteRecommender:
             "recommendations": final[:3]
         }
 
-    def _generate_forensic_explanation(self, persona, trace, threat):
-        """
-        Generates quantitative, decision-defensible explanations as required by TEST 5.
-        """
-        eta = trace["eta"]["transit"] + trace["eta"]["transfer"] + trace["eta"]["scenario"]
-        cost = trace["cost"]["transit"] + trace["cost"]["transfer"] + trace["cost"]["scenario"]
-        transfer_count = round(trace["eta"]["transfer"] / 4.0) # Approx transfers
-        
-        if persona == "FASTEST":
-            return f"Velocity-optimized. Mode handoffs applied to reduce transit time by {round(trace['eta']['transit']*0.2, 1)}h vs pure surface transport. {transfer_count} strategic transfers enforced."
-        elif persona == "SAFEST":
-             return f"Resilience-optimized. Path selection reduces risk exposure by {round((1.0 - threat)*100)}% by bypassing volatile corridors. Lead-time integrity prioritized over cost."
-        else:
-             return f"Economic-optimized. Multimodal balance reduces total landed cost by {round(cost*0.15)}% vs premium express AIR, while maintaining defensible lead times."
+    @staticmethod
+    def _explain(c, by_persona):
+        """R18: every number here is read off the routes (no fixed percentages)."""
+        eta, cost, threat = c["adjusted_eta"], c["total_cost"], c["threat_level"]
+        transfers = sum(leg["type"] == "transfer" for leg in c["legs"])
+        facts = f"{eta}h, ${cost:,.0f}, peak threat {threat}, {transfers} transfer{'s' if transfers != 1 else ''}."
+        fast = by_persona.get("FASTEST")
+
+        if c["persona"] == "FASTEST" or not fast:
+            slower = [o for o in by_persona.values() if o["adjusted_eta"] > eta]
+            if not slower:
+                return f"Fastest route: {facts}"
+            nxt = min(slower, key=lambda o: o["adjusted_eta"])
+            return f"Fastest route: {facts} {nxt['adjusted_eta'] - eta:.1f}h quicker than {nxt['persona']}."
+
+        dt, dc = eta - fast["adjusted_eta"], cost - fast["total_cost"]
+        vs_fast = f"{dt:+.1f}h and ${abs(dc):,.0f} {'more' if dc >= 0 else 'less'} than FASTEST"
+        if c["persona"] == "SAFEST":
+            return f"Lowest-risk route: {facts} Avoids FASTEST's peak threat of {fast['threat_level']}, for {vs_fast}."
+        return f"Cost-time balance: {facts} {vs_fast}."
