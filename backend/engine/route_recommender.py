@@ -165,7 +165,8 @@ class RouteRecommender:
                     v_data = G_p.nodes[v]
                     p_id = v_data.get("physical_id")
                     
-                    l_time = d["baseline_time"]
+                    base_time = d["baseline_time"]
+                    l_time = base_time
                     l_cost = d.get("cost", 0)
                     l_threat = d.get("base_threat", 0.05)
                     l_news = d.get("base_news", "Standard conditions")
@@ -181,11 +182,12 @@ class RouteRecommender:
                         trace["risk"]["scenario"] = max(trace["risk"]["scenario"], l_threat)
                         trace["cost"]["scenario"] += (l_cost * 0.1)
                     
+                    # R10: the buckets get base hours; the scenario delay is only in the scenario bucket
                     if d["type"] == "transfer":
-                        trace["eta"]["transfer"] += l_time
+                        trace["eta"]["transfer"] += base_time
                         trace["cost"]["transfer"] += l_cost
                     else:
-                        trace["eta"]["transit"] += l_time
+                        trace["eta"]["transit"] += base_time
                         trace["cost"]["transit"] += l_cost
                         trace["risk"]["baseline"] = max(trace["risk"]["baseline"], l_threat)
 
@@ -207,6 +209,7 @@ class RouteRecommender:
                     })
 
                 if total_cost > cost_ceiling or total_time > (max_delay * 24): continue
+                trace["eta"] = {k: round(v, 1) for k, v in trace["eta"].items()}
 
                 candidates.append({
                     "persona": persona,
