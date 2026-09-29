@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Truck, Ship, Plane, Train, 
   AlertTriangle, ShieldCheck, Clock, DollarSign, 
@@ -7,7 +7,10 @@ import {
   ArrowRightLeft, AlertCircle, BarChart3, Activity, Layers, Terminal
 } from 'lucide-react';
 import EngineStatus from './EngineStatus.jsx';
-import { buildOverrides, hubNames, legFacts, parseCount, pickSelected, scenarioLegCount } from './uiLogic.js';
+import {
+  buildOverrides, createRequestGate, debounce, endpointFor, hubNames, hubSearchUrl,
+  legFacts, parseCount, pickSelected, scenarioLegCount,
+} from './uiLogic.js';
 
 // The audit trace holds raw floats (e.g. 16.95663775053027); show hours to 0.1 and dollars to the cent.
 const hours = (h) => Math.round(h * 10) / 10;
@@ -59,6 +62,13 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
     setAvoid(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const getRecommendations = async () => {
+    // A name typed without picking a suggestion is sent as text; the backend resolves or rejects it (F3).
+    const origin = endpointFor(source, searchQuery.source);
+    const dest = endpointFor(destination, searchQuery.dest);
+    if (!origin || !dest) {
+      setError(`Enter ${!origin ? 'an origin' : 'a destination'} hub.`);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -66,8 +76,8 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          source,
-          destination,
+          source: origin,
+          destination: dest,
           transport_preference: transportMode,
           routing_policy: routingPolicy,
           cargo_type: cargoType,
@@ -106,27 +116,38 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
     }
   };
 
-  const handleSearch = async (type, query) => {
+  // Hub search (F3): one request per 250 ms pause in typing, and only the newest reply is shown.
+  const setHub = { source: setSource, dest: setDestination };
+  const searchGates = useRef({ source: createRequestGate(), dest: createRequestGate() });
+  const runSearch = async (type, query, token) => {
+    try {
+      const res = await fetch(hubSearchUrl(query));
+      const data = await res.json();
+      if (!searchGates.current[type].isLatest(token)) return; // a newer keystroke or a pick superseded it
+      setSearchResults(prev => ({ ...prev, [type]: Array.isArray(data) ? data : [] }));
+    } catch (err) { console.error("Search failed"); }
+  };
+  // runSearch only uses state setters and refs, so the first render's copy stays valid.
+  const debouncedSearch = useRef({ source: debounce(runSearch, 250), dest: debounce(runSearch, 250) });
+  useEffect(() => () => Object.values(debouncedSearch.current).forEach(d => d.cancel()), []);
+
+  const handleSearch = (type, query) => {
     setSearchQuery(prev => ({ ...prev, [type]: query }));
-    if (query.length < 2) {
+    setHub[type](''); // the box no longer shows the hub picked earlier, so don't route from it
+    const token = searchGates.current[type].next();
+    if (query.trim().length < 2) {
+      debouncedSearch.current[type].cancel();
       setSearchResults(prev => ({ ...prev, [type]: [] }));
       return;
     }
-    try {
-      const res = await fetch(`/api/hubs/search?q=${query}`);
-      const data = await res.json();
-      setSearchResults(prev => ({ ...prev, [type]: data }));
-    } catch (err) { console.error("Search failed"); }
+    debouncedSearch.current[type](type, query, token);
   };
 
   const selectHub = (type, hub) => {
-    if (type === 'source') {
-      setSource(hub.id);
-      setSearchQuery(prev => ({ ...prev, source: hub.display_name }));
-    } else {
-      setDestination(hub.id);
-      setSearchQuery(prev => ({ ...prev, dest: hub.display_name }));
-    }
+    searchGates.current[type].next();
+    debouncedSearch.current[type].cancel();
+    setHub[type](hub.id);
+    setSearchQuery(prev => ({ ...prev, [type]: hub.display_name }));
     setSearchResults(prev => ({ ...prev, [type]: [] }));
   };
 

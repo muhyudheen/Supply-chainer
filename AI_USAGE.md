@@ -8,3 +8,4 @@
 - F4: Claude Code wrote the per-leg time/cost/threat line, the scenario-reason line, the route threat badge, the `legFacts` helper and their tests.
 - F5: Claude Code removed the hardcoded claims, wrote the response-based scenario banner and Risk Exposure box, the `scenarioLegCount` helper and their tests.
 - F10: Claude Code wrote the `EngineStatus` header badge, the `engineStatusView` helper, the /ws reconnect in `App.jsx` and their tests.
+- F3: Claude Code wrote the debounced, encoded hub search with stale-reply protection, the `hubSearchUrl`/`debounce`/`createRequestGate`/`endpointFor` helpers and their tests.

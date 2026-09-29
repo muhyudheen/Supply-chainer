@@ -52,6 +52,33 @@ export function engineStatusView(status) {
   return { label: s, tone: 'warn', hint: 'Unrecognised engine status' };
 }
 
+// Hub search URL with the query encoded, so "&", "#" or accents can't break the request (F3).
+export function hubSearchUrl(query) {
+  return `/api/hubs/search?q=${encodeURIComponent(query.trim())}`;
+}
+
+// Calls fn once, with the latest arguments, after `ms` without another call. .cancel() drops a pending call.
+export function debounce(fn, ms) {
+  let timer;
+  const debounced = (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+  debounced.cancel = () => clearTimeout(timer);
+  return debounced;
+}
+
+// Numbers requests so a slow, older reply can't overwrite a newer one: only the latest token is accepted.
+export function createRequestGate() {
+  let latest = 0;
+  return { next: () => ++latest, isLatest: (token) => token === latest };
+}
+
+// What to send as origin/destination: the picked hub id, or else the typed text (the backend also resolves names).
+export function endpointFor(hubId, typedText) {
+  return hubId || typedText.trim();
+}
+
 // Display names for hub ids (e.g. the response's closed_hubs), falling back to the id itself.
 export function hubNames(ids, namesById) {
   return (ids ?? []).map(id => namesById[id] ?? id);

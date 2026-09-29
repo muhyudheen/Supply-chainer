@@ -88,6 +88,43 @@ test('F5: the hardcoded claims are gone', () => {
   assert.ok(src.includes('activeScenario'), 'the scenario banner comes from the response');
 });
 
+// F3: hub search is encoded, debounced, and ignores stale replies
+test('F3: hubSearchUrl URL-encodes the query', () => {
+  assert.equal(ui.hubSearchUrl(' São Paulo & Co#1 '), '/api/hubs/search?q=S%C3%A3o%20Paulo%20%26%20Co%231');
+});
+
+test('F3: debounce runs once, with the last arguments, after the pause', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const calls = [];
+  const search = ui.debounce(q => calls.push(q), 250);
+  search('ro'); search('rot'); search('rott');
+  t.mock.timers.tick(249);
+  assert.deepEqual(calls, []);
+  t.mock.timers.tick(1);
+  assert.deepEqual(calls, ['rott']);
+  search('x'); search.cancel(); t.mock.timers.tick(500);
+  assert.deepEqual(calls, ['rott']);
+});
+
+test('F3: a request gate only accepts the newest reply', () => {
+  const gate = ui.createRequestGate();
+  const older = gate.next(), newer = gate.next();
+  assert.equal(gate.isLatest(older), false);
+  assert.equal(gate.isLatest(newer), true);
+});
+
+test('F3: a typed name is sent when no suggestion was picked', () => {
+  assert.equal(ui.endpointFor('PORT-ROTTERDAM', 'Rotterdam'), 'PORT-ROTTERDAM');
+  assert.equal(ui.endpointFor('', '  Rotterdam '), 'Rotterdam');
+  assert.equal(ui.endpointFor('', '  '), '');
+});
+
+test('F3: editing the box clears the chosen hub', () => {
+  const src = source('RouteRecommender.jsx');
+  assert.ok(src.includes('hubSearchUrl(') && !src.includes('search?q=${'));
+  assert.ok(src.includes("setHub[type]('')"), 'editing the text must drop the hub picked earlier');
+});
+
 // F10: the /ws engine status is shown, including a failed NLP warm-up
 test('F10: engineStatusView maps each /ws state to a label and tone', () => {
   assert.equal(ui.engineStatusView(null).tone, 'muted');
