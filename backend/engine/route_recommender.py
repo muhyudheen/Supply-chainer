@@ -84,6 +84,11 @@ class RouteRecommender:
         disruptions = self.scenario_mgr.get_active_disruptions()
         # R9: threat 1.0 means closed, not just slow: those hubs are taken out of the graph
         closed_hubs = sorted(p for p, d in disruptions.items() if d["threat"] >= 1.0)
+
+        def disruption_at(node_data):
+            """S2: a scenario only hits arrivals in its own mode (a road flood doesn't slow ships)."""
+            d = disruptions.get(node_data.get("physical_id"))
+            return d if d and node_data.get("mode") == d["mode"] else None
         
         # 3. Persona Optimization
         candidates = []
@@ -118,15 +123,14 @@ class RouteRecommender:
                     base_c = d.get("cost", 0)
                     
                     # Intelligence Factor (Mapped to physical node)
-                    v_data = G_p.nodes[v]
-                    p_id = v_data.get("physical_id")
+                    hit = disruption_at(G_p.nodes[v])
                     
                     threat = d.get("base_threat", 0.05)
                     delay = 0
                     
-                    if p_id in disruptions:
-                        threat = max(threat, disruptions[p_id]["threat"])
-                        delay += disruptions[p_id]["delay"]
+                    if hit:
+                        threat = max(threat, hit["threat"])
+                        delay += hit["delay"]
                     
                     if persona == "FASTEST":
                         return base_t + delay
@@ -165,12 +169,13 @@ class RouteRecommender:
                     l_news = d.get("base_news", "Standard conditions")
                     l_source = "FALLBACK"
                     
-                    if p_id in disruptions:
-                        l_time += disruptions[p_id]["delay"]
-                        l_threat = max(l_threat, disruptions[p_id]["threat"])
-                        l_news = disruptions[p_id]["reason"]
+                    hit = disruption_at(v_data)
+                    if hit:
+                        l_time += hit["delay"]
+                        l_threat = max(l_threat, hit["threat"])
+                        l_news = hit["reason"]
                         l_source = "SCENARIO"
-                        trace["eta"]["scenario"] += disruptions[p_id]["delay"]
+                        trace["eta"]["scenario"] += hit["delay"]
                         trace["risk"]["scenario"] = max(trace["risk"]["scenario"], l_threat)
                         trace["cost"]["scenario"] += (l_cost * 0.1)
                     
