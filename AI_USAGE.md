@@ -1,0 +1,7 @@
+# AI usage (Rule 6)
+
+## Frontend (abeltjoseph2005-art)
+
+- F7 (`ab31f95`): Claude Code wrote the supplier-page input fix, the `parseCount` helper and its tests, and checked it against the live backend.
+- F2 (`87b38e6`): Claude Code wrote the Strategic Overrides inputs, the `buildOverrides`/`hubNames` helpers, the closed-hubs banner and their tests.
+- F1 (`b952697`): Claude Code wrote the selectable route cards, the `pickSelected` helper, the audit-panel change and their tests.
