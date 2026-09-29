@@ -118,6 +118,7 @@ Sections E–J come from a skim for important issues only (28–29 Sep night), t
 | S1 | 19–27, 55–63 | RED_SEA_CONFLICT and HORMUZ_CLOSURE target chokepoints that no route can enter (N9), so neither scenario ever changes a route. The Supplier screen does react to Hormuz (Desert Tech's lead time goes 8 → 11.5 days, score 0.74 → 0.58), so the two screens disagree about the same event. | T1, T2, N9 | Wrong decision, inconsistency | High | Walkthrough |
 | S2 | 17, 26, 35, 44, 53, 62 | Each scenario's `mode` field is never used. The router delays any leg that enters an affected hub, so a road flood (CHENNAI_FLOOD) also delays ships and trains at the port, and a port strike delays trucks too. | – | Missing logic | Medium | Walkthrough |
 | S3 | 49–52 | DUBAI_AIR_CONGESTION's reason says "48h clearance backlog", but only 24h is applied | – | Text vs number | Low | Walkthrough |
+| S4 | 25 | RED_SEA_CONFLICT's reason says "Vessels rerouting via Cape of Good Hope", but it is a 0.85 threat, not a closure: FASTEST still goes through Bab-el-Mandeb and only SAFEST takes the Cape | – | Text vs behaviour | Low | Teammate (frontend review) |
 
 ## F. From `backend/engine/node_resolver.py` and `backend/data/canonical_locations.json` (L)
 

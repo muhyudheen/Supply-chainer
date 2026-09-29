@@ -22,7 +22,7 @@ class ScenarioManager:
             "affected_nodes": ["CHOKE-BABEL"],
             "threat_level": 0.85,
             "delay_hours": 72,
-            "reason": "Regional conflict escalation. Vessels rerouting via Cape of Good Hope for risk mitigation.",
+            "reason": "Regional conflict escalation. Bab el-Mandeb transits face security holds and war-risk insurance delays.",
             "mode": "sea"
         },
         "LA_PORT_STRIKE": {
