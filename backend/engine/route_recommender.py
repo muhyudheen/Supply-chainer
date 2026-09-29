@@ -167,7 +167,8 @@ class RouteRecommender:
                     
                     base_time = d["baseline_time"]
                     l_time = base_time
-                    l_cost = d.get("cost", 0)
+                    base_cost = d.get("cost", 0)
+                    l_cost = base_cost
                     l_threat = d.get("base_threat", 0.05)
                     l_news = d.get("base_news", "Standard conditions")
                     l_source = "FALLBACK"
@@ -180,15 +181,17 @@ class RouteRecommender:
                         l_source = "SCENARIO"
                         trace["eta"]["scenario"] += hit["delay"]
                         trace["risk"]["scenario"] = max(trace["risk"]["scenario"], l_threat)
-                        trace["cost"]["scenario"] += (l_cost * 0.1)
+                        surcharge = base_cost * 0.1  # R11: the surcharge is charged, not just reported
+                        l_cost += surcharge
+                        trace["cost"]["scenario"] += surcharge
                     
                     # R10: the buckets get base hours; the scenario delay is only in the scenario bucket
                     if d["type"] == "transfer":
                         trace["eta"]["transfer"] += base_time
-                        trace["cost"]["transfer"] += l_cost
+                        trace["cost"]["transfer"] += base_cost
                     else:
                         trace["eta"]["transit"] += base_time
-                        trace["cost"]["transit"] += l_cost
+                        trace["cost"]["transit"] += base_cost
                         trace["risk"]["baseline"] = max(trace["risk"]["baseline"], l_threat)
 
                     total_time += l_time
@@ -210,6 +213,7 @@ class RouteRecommender:
 
                 if total_cost > cost_ceiling or total_time > (max_delay * 24): continue
                 trace["eta"] = {k: round(v, 1) for k, v in trace["eta"].items()}
+                trace["cost"] = {k: round(v, 2) for k, v in trace["cost"].items()}
 
                 candidates.append({
                     "persona": persona,
