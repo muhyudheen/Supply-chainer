@@ -50,6 +50,19 @@ class NodeResolver:
             
         entry_mode = "road" if "road" in target_hub["modes"] else target_hub["modes"][0]
         return {"id": f"{physical_id}:{entry_mode}"}
+    
+    def resolve_entry_nodes(self, location_or_id: str) -> Dict[str, Any]:
+        """Every node a trip may start or end at: all modes of a hub (for a hub ID),
+        or each of a city's per-mode hubs (for a city name). Fixes L1."""
+        hubs_by_id = {h["id"]: h for h in self.hubs}
+        if location_or_id in self.location_map:
+            pairs = [(hub_id, mode) for mode, hub_id in self.location_map[location_or_id].items()]
+        elif location_or_id in hubs_by_id:
+            pairs = [(location_or_id, mode) for mode in hubs_by_id[location_or_id]["modes"]]
+        else:
+            return {"error": f"Entry point unavailable for {location_or_id}"}
+        nodes = [f"{h}:{m}" for h, m in pairs if h in hubs_by_id and m in hubs_by_id[h]["modes"]]
+        return {"nodes": nodes} if nodes else {"error": f"Physical Hub mapping corrupted for {location_or_id}"}
 
     def resolve_node(self, location_or_id: str, mode: str = "any") -> str:
         """Legacy support"""

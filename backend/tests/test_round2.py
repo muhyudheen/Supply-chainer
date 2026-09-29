@@ -55,8 +55,12 @@ def test_n9_gulf_departure_passes_hormuz(rr):
 
 
 def test_n9_hormuz_scenario_hits_gulf_departure(rr):
+    normal = _sea(rr, "PORT-JEBEL", "PORT-SHANGHAI")["FASTEST"]
     route = _sea(rr, "PORT-JEBEL", "PORT-SHANGHAI", "HORMUZ_CLOSURE")["FASTEST"]
-    assert any(leg["to"] == "CHOKE-HORMUZ" and leg["intel_source"] == "SCENARIO" for leg in route["legs"])
+    assert "CHOKE-HORMUZ" in _stops(normal)
+    # either the route pays the scenario at Hormuz, or it detours around it (e.g. truck to Sohar)
+    assert "CHOKE-HORMUZ" not in _stops(route) or any(
+        leg["to"] == "CHOKE-HORMUZ" and leg["intel_source"] == "SCENARIO" for leg in route["legs"])
 
 
 def test_n9_red_sea_scenario_affects_asia_europe(rr):

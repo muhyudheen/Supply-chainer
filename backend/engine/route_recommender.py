@@ -71,13 +71,13 @@ class RouteRecommender:
         max_delay = overrides.get("max_delay", 9999)
         
         # 1. Resolve Entry/Exit (Virtual Nodes)
-        res_s = self.resolver.resolve_node_to_entry_point(source)
-        res_d = self.resolver.resolve_node_to_entry_point(destination)
+        res_s = self.resolver.resolve_entry_nodes(source)
+        res_d = self.resolver.resolve_entry_nodes(destination)
         
         if "error" in res_s: return {"error": res_s["error"]}
         if "error" in res_d: return {"error": res_d["error"]}
         
-        s_vnode, d_vnode = res_s["id"], res_d["id"]
+        SRC, DST = "__SOURCE__", "__DEST__"
         
         # 2. Scenario Activation
         active_scenario = self.scenario_mgr.activate_scenario(scenario)
@@ -103,6 +103,12 @@ class RouteRecommender:
                         if d["transport_mode"] not in allowed_modes:
                             edges_to_remove.append((u, v))
                     G_p.remove_edges_from(edges_to_remove)
+
+                # L1: the trip may start and end in any mode at origin/destination, at no cost
+                for n in res_s["nodes"]:
+                    if n in G_p: G_p.add_edge(SRC, n, baseline_time=0, cost=0, transport_mode="access", type="access", base_threat=0)
+                for n in res_d["nodes"]:
+                    if n in G_p: G_p.add_edge(n, DST, baseline_time=0, cost=0, transport_mode="access", type="access", base_threat=0)
 
                 def weight_func(u, v, d):
                     mode = d["transport_mode"]
@@ -132,7 +138,7 @@ class RouteRecommender:
                         risk_weight = 0.2
                         return (base_t + delay)*time_weight + (base_c / 150.0)*cost_weight + (threat * 40.0)*risk_weight
 
-                path = nx.dijkstra_path(G_p, s_vnode, d_vnode, weight=weight_func)
+                path = nx.dijkstra_path(G_p, SRC, DST, weight=weight_func)
                 
                 # Compose Multimodal Path Details
                 legs = []
@@ -145,6 +151,7 @@ class RouteRecommender:
 
                 for i in range(len(path)-1):
                     u, v = path[i], path[i+1]
+                    if u == SRC or v == DST: continue
                     d = G_p[u][v]
                     mode = d["transport_mode"]
                     v_data = G_p.nodes[v]
