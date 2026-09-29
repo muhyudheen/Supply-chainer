@@ -63,21 +63,12 @@ class ScenarioManager:
         }
     }
 
-    def __init__(self):
-        self.active_scenario_id = None
-
-    def activate_scenario(self, scenario_id: Optional[str]):
-        if scenario_id and scenario_id in self.SCENARIOS:
-            self.active_scenario_id = scenario_id
-            return self.SCENARIOS[scenario_id]
-        self.active_scenario_id = None
-        return None
-
-    def get_active_disruptions(self) -> Dict[str, Any]:
-        if not self.active_scenario_id:
+    # M14: no per-request state on this shared object; each request looks up its own scenario
+    def get_disruptions(self, scenario_id: Optional[str]) -> Dict[str, Any]:
+        scenario = self.SCENARIOS.get(scenario_id) if scenario_id else None
+        if not scenario:
             return {}
         
-        scenario = self.SCENARIOS[self.active_scenario_id]
         disruptions = {}
         for node in scenario["affected_nodes"]:
             disruptions[node] = {

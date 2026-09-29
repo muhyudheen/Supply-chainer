@@ -167,10 +167,9 @@ def recommend_routes(req: RecommendRequest):
 @app.post("/api/suppliers")
 def get_suppliers(req: SourcingRequest):
     # Get active disruptions from scenario manager
-    active_disruptions = {}
-    if req.scenario:
-        scenario_mgr.activate_scenario(req.scenario)
-        active_disruptions = scenario_mgr.get_active_disruptions()
+    if req.scenario and req.scenario not in scenario_mgr.SCENARIOS:
+        return {"error": f"Unknown scenario '{req.scenario}'"}
+    active_disruptions = scenario_mgr.get_disruptions(req.scenario)
     
     ranked_suppliers = supplier_scorer.get_ranked_suppliers(req.category, active_disruptions)
     advice = supplier_scorer.get_procurement_advice(req.current_inventory, req.safety_stock, req.demand_forecast)
