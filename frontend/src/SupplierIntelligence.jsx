@@ -4,7 +4,7 @@ import {
   BarChart3, Package, Truck, Database, Activity, CheckCircle2, ShieldAlert, Zap
 } from 'lucide-react';
 import EngineStatus from './EngineStatus.jsx';
-import { parseCount, supplierFacts } from './uiLogic.js';
+import { apiError, parseCount, supplierFacts } from './uiLogic.js';
 
 export default function SupplierIntelligence({ onNavigate, engineStatus }) {
   const [suppliers, setSuppliers] = useState([]);
@@ -51,9 +51,9 @@ export default function SupplierIntelligence({ onNavigate, engineStatus }) {
           scenario
         })
       });
-      if (!res.ok) throw new Error(`Supplier request failed (HTTP ${res.status})`);
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      const data = await res.json().catch(() => ({}));
+      const failure = apiError(res, data);
+      if (failure) throw new Error(failure);
       setSuppliers(data.suppliers ?? []);
       setAdvice(data.advice ?? null);
       setError(null);

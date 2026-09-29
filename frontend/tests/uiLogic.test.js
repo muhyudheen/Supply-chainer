@@ -18,7 +18,20 @@ test('F7: supplier page survives a failed or error response', () => {
   const src = source('SupplierIntelligence.jsx');
   assert.ok(!src.includes('parseInt('), 'inputs must not use parseInt');
   assert.ok(src.includes('data.suppliers ?? []'));
-  assert.ok(src.includes('res.ok') && src.includes('data.error'));
+  assert.ok(src.includes('apiError(res, data)'));
+});
+
+// M13 follow-up: the backend now answers errors with 400/404 and an {error} body
+test('apiError prefers the backend message and catches non-2xx replies without one', () => {
+  assert.equal(ui.apiError({ ok: false, status: 400 }, { error: "Unknown scenario 'X'" }), "Unknown scenario 'X'");
+  assert.equal(ui.apiError({ ok: false, status: 422 }, { detail: [] }), 'Request failed (HTTP 422)');
+  assert.equal(ui.apiError({ ok: true, status: 200 }, { error: 'legacy 200 error' }), 'legacy 200 error');
+  assert.equal(ui.apiError({ ok: true, status: 200 }, { suppliers: [] }), null);
+});
+
+test('both pages use apiError for their API replies', () => {
+  for (const page of ['SupplierIntelligence.jsx', 'RouteRecommender.jsx'])
+    assert.ok(source(page).includes('apiError(res, data)'), page);
 });
 
 // F2: "Strategic Overrides" must be real inputs sent to /api/recommend

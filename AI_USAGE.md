@@ -10,3 +10,4 @@
 - F10: Claude Code wrote the `EngineStatus` header badge, the `engineStatusView` helper, the /ws reconnect in `App.jsx` and their tests.
 - F3: Claude Code wrote the debounced, encoded hub search with stale-reply protection, the `hubSearchUrl`/`debounce`/`createRequestGate`/`endpointFor` helpers and their tests.
 - F8: Claude Code replaced the derived "Risk Score" with reliability, disruption penalties and the decision score from the audit trace, wrote the `supplierFacts` helper and their tests.
+- M13 follow-up: Claude Code wrote the `apiError` helper so both pages show the backend's 400/404 `{error}` messages, and its tests.

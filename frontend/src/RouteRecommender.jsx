@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import EngineStatus from './EngineStatus.jsx';
 import {
-  buildOverrides, createRequestGate, debounce, endpointFor, hubNames, hubSearchUrl,
+  apiError, buildOverrides, createRequestGate, debounce, endpointFor, hubNames, hubSearchUrl,
   legFacts, parseCount, pickSelected, scenarioLegCount,
 } from './uiLogic.js';
 
@@ -86,9 +86,10 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
           overrides: buildOverrides({ avoid, costCeiling, maxTransitDays })
         })
       });
-      const data = await res.json();
-      if (data.error) {
-        setError(data.error);
+      const data = await res.json().catch(() => ({}));
+      const failure = apiError(res, data);
+      if (failure) {
+        setError(failure);
         setRecommendations([]);
         setClosedHubs([]);
         setActiveScenario(null);

@@ -1,4 +1,12 @@
-// Pure helpers used by the dashboard. No React here, so backend/tests/test_frontend.py can run them under Node.
+// Pure helpers used by the dashboard. No React here, so frontend/tests/uiLogic.test.js can run them under Node.
+
+// The error to show for an API reply, or null if it succeeded. The backend sends {error} with 400/404
+// (M13); anything else that isn't 2xx (e.g. a 422 with {detail}) gets a generic message.
+export function apiError(res, data) {
+  if (data?.error) return data.error;
+  if (!res.ok) return `Request failed (HTTP ${res.status})`;
+  return null;
+}
 
 // A whole, non-negative number typed into a count box, or null if the text isn't one (e.g. an emptied box).
 export function parseCount(text) {
