@@ -242,14 +242,21 @@ class RouteRecommender:
         for c in candidates:
             c["explanation"] = self._explain(c, by_persona)
 
-        # Deduplicate and sort
+        # Deduplicate and sort. R17: a persona that picked the same route (same stops and modes)
+        # is listed on the card that shows it, instead of being dropped without a word.
         final = []
-        seen = set()
+        seen = {}
         for c in sorted(candidates, key=lambda x: x["adjusted_eta"]):
-            path_sig = tuple([l["to"] for l in c["legs"]])
-            if path_sig not in seen:
+            path_sig = tuple((l["to"], l["mode"]) for l in c["legs"])
+            if path_sig in seen:
+                seen[path_sig]["also_best_for"].append(c["persona"])
+            else:
+                c["also_best_for"] = []
                 final.append(c)
-                seen.add(path_sig)
+                seen[path_sig] = c
+        for c in final:
+            if c["also_best_for"]:
+                c["explanation"] += f" Also the {' and '.join(c['also_best_for'])} choice: no other route did better on that."
 
         return {
             "origin": source, "destination": destination,
