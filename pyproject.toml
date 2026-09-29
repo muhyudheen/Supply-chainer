@@ -49,3 +49,4 @@ explicit = true
 [tool.pytest.ini_options]
 markers = ["slow: loads the MiniLM model (about 1 GB RAM)"]
 testpaths = ["backend/tests"]
+pythonpath = ["."]
