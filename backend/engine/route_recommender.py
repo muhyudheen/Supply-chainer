@@ -80,6 +80,8 @@ class RouteRecommender:
         SRC, DST = "__SOURCE__", "__DEST__"
         
         # 2. Scenario Activation
+        if scenario and scenario not in self.scenario_mgr.SCENARIOS:  # M7: a typo must not mean "no scenario"
+            return {"error": f"Unknown scenario '{scenario}'. Valid: {', '.join(self.scenario_mgr.SCENARIOS)}"}
         active_scenario = self.scenario_mgr.activate_scenario(scenario)
         disruptions = self.scenario_mgr.get_active_disruptions()
         # R9: threat 1.0 means closed, not just slow: those hubs are taken out of the graph
