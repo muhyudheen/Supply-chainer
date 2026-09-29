@@ -41,6 +41,9 @@ class RouteRecommender:
         try:
             self.predictor.warmup()
             self.nlp.warmup()
+            if not self.nlp._ready:
+                raise RuntimeError("NLP engine failed to load; see the [NLP ENGINE] message above")
+
             
             # Enrich unified graph with baseline intelligence
             for u, v, d in self.unified_graph.edges(data=True):

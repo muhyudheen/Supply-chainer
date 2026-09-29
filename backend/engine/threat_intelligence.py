@@ -160,6 +160,7 @@ class ContrastiveNLPEngine:
                 self._ready = True
                 print(f"NLP Brain: Loaded Historical Anchor Matrix.")
             else:
+                print(f"[NLP ENGINE] Anchor file not found: {NLP_ANCHORS_PATH}")
                 self._ready = False
         except Exception as e:
             print(f"[NLP ENGINE] Warmup failed: {e}")
