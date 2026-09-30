@@ -283,5 +283,13 @@ class RouteRecommender:
         dt, dc = eta - fast["adjusted_eta"], cost - fast["total_cost"]
         vs_fast = f"{dt:+.1f}h and ${abs(dc):,.0f} {'more' if dc >= 0 else 'less'} than FASTEST"
         if c["persona"] == "SAFEST":
-            return f"Lowest-risk route: {facts} Avoids FASTEST's peak threat of {fast['threat_level']}, for {vs_fast}."
+            # R20: only claim to avoid FASTEST's threat when ours is actually lower.
+            ft = fast["threat_level"]
+            if threat < ft:
+                risk = f"Avoids FASTEST's peak threat of {ft}"
+            elif threat == ft:
+                risk = f"Same peak threat as FASTEST ({ft})"
+            else:
+                risk = f"Higher peak threat than FASTEST ({ft})"
+            return f"Lowest-risk route: {facts} {risk}, for {vs_fast}."
         return f"Cost-time balance: {facts} {vs_fast}."
