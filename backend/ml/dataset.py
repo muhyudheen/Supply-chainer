@@ -7,7 +7,7 @@ Code/real_dataset_builder.py, with the source labels given there; we have not ve
 Everything marked "assumed" is our modelling choice, not data.
 
 Delay of a leg (hours beyond its baseline travel time):
-    dwell at the arrival hub      only where cargo is handled at a port, terminal or airport (mode anchor),
+    dwell at the arrival hub      only where cargo is handled (port, terminal, airport, distribution hub),
                                   or when arriving at a canal (the organizers' Suez anchor)
   + en-route variability          a share of the leg's baseline travel time, raised by weather
   + incident delay                on the few rows with an incident

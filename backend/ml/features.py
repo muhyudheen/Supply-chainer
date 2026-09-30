@@ -10,8 +10,8 @@ FEATURES = ["mode", "distance_km", "origin_type", "dest_type", "origin_importanc
             "chokepoint", "arrives_canal", "cargo_handled", "region", "weather", "news"]
 CATEGORICAL = ["mode", "origin_type", "dest_type", "region"]
 
-# Hub types where cargo waits in a terminal when it is unloaded or transferred (the dwell anchors)
-TERMINAL_TYPES = {"port", "airport", "rail_hub", "rail_terminal"}
+# Hub types where cargo waits when it is unloaded or transferred (the dwell anchors); only chokepoints have none
+TERMINAL_TYPES = {"port", "airport", "rail_hub", "rail_terminal", "distribution_hub"}
 # Chokepoints with a booked, queued transit; the other chokepoints are open straits, capes or lanes
 CANALS = {"CHOKE-SUEZ", "CHOKE-PANAMA"}
 
@@ -59,8 +59,8 @@ def leg_features(G, u, v, *, cargo_handled, weather=0.0, news=0.0):
     """Features of the transit leg u -> v of the multimodal graph.
 
     cargo_handled: the cargo is unloaded or transferred where this leg ends (the next step is a transfer,
-    or the trip ends there). It only counts at a port, terminal or airport; a ship calling at a port on
-    the way, or passing a strait, has no dwell.
+    or the trip ends there). It only counts at a port, terminal, airport or distribution hub; a ship
+    calling at a port on the way, or passing a chokepoint, has no dwell.
     weather: severity 0-1 at the arrival hub (Open-Meteo's code mapped by WMO_SEVERITY_MAPPING; 0 offline).
     news: threat 0-1 on the NLP engine's scale (score_from_margin; 0 when there is no news).
     """
