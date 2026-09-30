@@ -269,6 +269,21 @@ The organizers' `MODE_PROFILES` table is now enforced: hazardous waste never fli
 * Dwell during route search is an estimate: on about 8% of trips, FASTEST's shown ETA is 0.4–6.5 h above another card's.
 * Still open: R19 (warm-up message), M5 (graph built twice), M9 (hardcoded /ws values), N8 (34 links to missing hubs), N12 (duplicate HUB-CHICAGO), M2 (PREFERRED policy does nothing).
 
+## Additional Enhancements
+
+Beyond fixing the listed bugs, we built:
+
+1. **A new delay model, wired into routing.** A leak-free simulated dataset built from our real route graph, three quantile models (p50/p85/p95) tested on routes they never saw (p85 covers 85.5%), and each persona planning with its own quantile: FASTEST p50, BALANCED p85, SAFEST p95.
+2. **ETA ranges on every route card.** A typical arrival plus the bad-day (p85) and very-bad-day (p95) arrivals, instead of a single number.
+3. **Explainable delays (SHAP).** Each route's predicted delay is split into calm transit, terminal dwell, canal queue, chokepoint risk, weather and news (exact Shapley values), shown in `audit_trace` and on the dashboard.
+4. **Live weather.** Current weather for every hub from Open-Meteo in one batched call at start-up (no API key); if it can't be reached, weather is 0 and the status says "offline".
+5. **Cargo type and priority controls.** Dashboard inputs; each excluded mode comes with its reason; urgent priority makes BALANCED weigh time more; clear 400/404 messages name the rule.
+6. **Model status in the API and dashboard.** `/api/status` reports when the model was trained, its held-out coverage and pinball loss, and the weather source, replacing hardcoded values.
+7. **Realistic sea network.** Ocean basins, real chokepoint gates (Malacca, Bab-el-Mandeb, Suez, Hormuz and more) and trunk lanes that follow waypoints around land (`backend/data/sea_network.json`).
+8. **A test suite where there was none.** 133 backend tests (pytest) and 30 frontend tests (Node's built-in runner), each round committed failing first.
+9. **Reproducible setup.** A uv project with pinned dependencies and CPU-only PyTorch; data and model paths no longer depend on the folder you start from; the dataset regenerates from a seed, and the model retrains in about 5 s.
+10. **Documentation.** 130 findings with IDs (`BUG_LIST.md`), root causes and progress (`BUG_REPORT.md`), and a Rule 6 AI-usage log (`AI_USAGE.md`).
+
 ## Team and AI Usage
 
 Muhammed Muhyudheen T (backend, model, docs) and Abel T Joseph (frontend). Claude Code (Claude Opus 5.5) was used throughout; what it wrote is listed in [`AI_USAGE.md`](AI_USAGE.md). Our development minutes are hand-written.
