@@ -41,7 +41,38 @@ WMO_SEVERITY_MAPPING = {
     71: 0.6, 73: 0.8, 75: 1.0, # Snow
     80: 0.5, 81: 0.7, 82: 0.9, # Rain showers
     95: 0.9, 96: 1.0, 99: 1.0, # Thunderstorm
+    # Round 7: codes Open-Meteo also returns, rated like their neighbours above (our values)
+    56: 0.5, 57: 0.6, # Freezing drizzle
+    66: 0.7, 67: 0.9, # Freezing rain
+    77: 0.6, # Snow grains
+    85: 0.7, 86: 0.9, # Snow showers
 }
+
+OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+
+
+def fetch_hub_weather(coords: Dict[str, Tuple[float, float]], get=requests.get, batch_size: int = 100,
+                      timeout: float = 10) -> Dict[str, float]:
+    """Current weather severity (0-1) per hub from Open-Meteo, one request per batch of hubs (free, no key).
+    Raises on any failure; the caller then uses 0 and reports the weather as offline, never a made-up value."""
+    ids = list(coords)
+    out = {}
+    for i in range(0, len(ids), batch_size):
+        chunk = ids[i:i + batch_size]
+        r = get(OPEN_METEO_URL, params={"latitude": ",".join(str(coords[h][0]) for h in chunk),
+                                        "longitude": ",".join(str(coords[h][1]) for h in chunk),
+                                        "current_weather": "true"}, timeout=timeout)
+        r.raise_for_status()
+        data = r.json()
+        places = data if isinstance(data, list) else [data]  # a single location comes back as one object
+        if len(places) != len(chunk):
+            raise ValueError(f"Open-Meteo returned {len(places)} places for {len(chunk)} hubs")
+        for hub, place in zip(chunk, places):
+            code = place["current_weather"]["weathercode"]
+            if code not in WMO_SEVERITY_MAPPING:
+                raise ValueError(f"Unknown WMO weather code {code}")
+            out[hub] = WMO_SEVERITY_MAPPING[code]
+    return out
 
 class WeatherProvider(ABC):
     @property
