@@ -111,7 +111,8 @@ def get_network():
 @app.get("/api/status")
 def get_status():
     return {
-        "ml_trained": True,
+        "ml_trained": recommender.delay_model is not None,  # round 7: the delay model the router uses
+        **recommender.model_status(),  # its training date, metrics, and where the weather comes from
         "active_trips": len(simulator.active_trips),
         "tick": simulator.time_tick,
         "is_supplychainer": True,
