@@ -1,0 +1,102 @@
+{
+  "overall": {
+    "rows": 10087,
+    "coverage": {
+      "p50": 0.515,
+      "p85": 0.855,
+      "p95": 0.951
+    },
+    "pinball": {
+      "p50": 5.032,
+      "p85": 4.083,
+      "p95": 2.162
+    },
+    "baseline_pinball": {
+      "p50": 8.317,
+      "p85": 7.779,
+      "p95": 4.045
+    },
+    "median_width_p50_to_p95_h": 20.2,
+    "crossing_rows_before_sort": 0.0181
+  },
+  "per_mode": {
+    "sea": {
+      "rows": 2749,
+      "coverage": {
+        "p50": 0.493,
+        "p85": 0.844,
+        "p95": 0.947
+      },
+      "pinball": {
+        "p50": 11.191,
+        "p85": 9.352,
+        "p95": 5.117
+      },
+      "baseline_pinball": {
+        "p50": 16.623,
+        "p85": 16.301,
+        "p95": 8.583
+      },
+      "median_width_p50_to_p95_h": 50.9
+    },
+    "air": {
+      "rows": 2529,
+      "coverage": {
+        "p50": 0.513,
+        "p85": 0.847,
+        "p95": 0.945
+      },
+      "pinball": {
+        "p50": 2.775,
+        "p85": 2.151,
+        "p95": 1.087
+      },
+      "baseline_pinball": {
+        "p50": 4.796,
+        "p85": 4.549,
+        "p95": 2.303
+      },
+      "median_width_p50_to_p95_h": 22.7
+    },
+    "rail": {
+      "rows": 2424,
+      "coverage": {
+        "p50": 0.536,
+        "p85": 0.866,
+        "p95": 0.957
+      },
+      "pinball": {
+        "p50": 3.925,
+        "p85": 2.902,
+        "p95": 1.408
+      },
+      "baseline_pinball": {
+        "p50": 8.289,
+        "p85": 6.15,
+        "p95": 2.935
+      },
+      "median_width_p50_to_p95_h": 39.1
+    },
+    "road": {
+      "rows": 2385,
+      "coverage": {
+        "p50": 0.521,
+        "p85": 0.865,
+        "p95": 0.956
+      },
+      "pinball": {
+        "p50": 1.454,
+        "p85": 1.258,
+        "p95": 0.663
+      },
+      "baseline_pinball": {
+        "p50": 2.504,
+        "p85": 3.036,
+        "p95": 1.788
+      },
+      "median_width_p50_to_p95_h": 7.8
+    }
+  },
+  "split": "GroupShuffleSplit by origin-destination hub pair, 20% of routes held out",
+  "data": "50000 simulated rows from backend/ml/dataset.py, seed 42"
+}
