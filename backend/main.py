@@ -39,9 +39,9 @@ class RecommendRequest(BaseModel):
     destination: str # This should be a Canonical Hub ID or City Name
     cargo_type: str = "general"
     priority: str = "normal"
-    budget_sensitivity: str = "medium"
+    budget_sensitivity: str = "medium"  ##### Marked not implemented (MM) 151-164
     transport_preference: str = "any" # sea, air, rail, road, any
-    routing_policy: str = "STRICT" # STRICT or PREFERRED
+    routing_policy: str = "STRICT" # STRICT or PREFERRED(check anywhere for this)
     scenario: Optional[str] = None
     overrides: Optional[dict] = None
 
