@@ -95,6 +95,25 @@ def test_dwell_only_where_cargo_is_handled(features, df, mode):
     assert handled["delay_h"].median() > 5 * passing["delay_h"].median()
 
 
+# Distribution hubs handle cargo too, so they get dwell when cargo is unloaded there
+def test_distribution_hubs_count_as_terminals(features, df):
+    assert "distribution_hub" in features.TERMINAL_TYPES
+    assert (df.loc[df["dest_type"] == "distribution_hub", "cargo_handled"] == 1).any()
+
+
+# Canal legs keep the normal incident rate: the canal anchor's p90 already holds the 2021 blockage
+@pytest.mark.parametrize("u, v, doubled", [
+    ("PORT-ALEXANDR:sea", "CHOKE-SUEZ:sea", False),  # into a canal
+    ("CHOKE-SUEZ:sea", "PORT-ALEXANDR:sea", False),  # out of a canal
+    ("PORT-SINGAPORE:sea", "CHOKE-MALACCA:sea", True),  # into a strait
+    ("CHOKE-BABEL:sea", "CHOKE-SUEZ:sea", True),  # strait to canal: the strait counts
+    ("PORT-CAIMEP:sea", "PORT-SINGAPORE:sea", False),  # no chokepoint
+])
+def test_canal_legs_use_the_normal_incident_rate(dataset, G, u, v, doubled):
+    expected = dataset.CHOKEPOINT_INCIDENT_RATE if doubled else dataset.INCIDENT_RATE
+    assert dataset.incident_rate(G, u, v) == expected
+
+
 # The Suez anchor applies to canals (Suez, Panama), not to open straits
 def test_canal_arrivals_wait_longer_than_strait_arrivals(df):
     calm = df[(df["dest_type"] == "choke_point") & ~df["incident"]]
