@@ -1,6 +1,6 @@
 # Handoff: where we are, what's next
 
-TatHack '26 prelim, problem statement 6 (Supplychainer). Team: **muhyudheen** (repo owner: backend and model) and **abeltjoseph2005-art** (frontend). Updated 30 Sep 2026, 00:45 IST, at commit `fb7959a`.
+TatHack '26 prelim, problem statement 6 (Supplychainer). Team: **muhyudheen** (repo owner: backend and model) and **abeltjoseph2005-art** (frontend). Updated 30 Sep 2026, 17:30 IST. Rounds 1–8 are done; see the status note below and `BUG_REPORT.md` → Progress.
 
 If you are a Claude Code session: `CLAUDE.md` (loaded automatically) has the working rules. Read this file next, then `BUG_REPORT.md` (root causes, and a Progress table at the end). `BUG_LIST.md` has all 130 findings with IDs. If you run in the cloud, read §8 before doing anything.
 
@@ -21,7 +21,7 @@ If you are a Claude Code session: `CLAUDE.md` (loaded automatically) has the wor
 ## 2. Where we are
 
 ### Backend (owner): rounds 1–6 done
-All 66 tests pass (57 fast, 9 slow). Every round has a failing-tests commit, then one commit per fix. The commit list is in `BUG_REPORT.md` → Progress.
+All 133 backend tests (123 fast, 10 slow) and 30 frontend tests pass. Every round has a failing-tests commit, then one commit per fix. The commit list is in `BUG_REPORT.md` → Progress.
 
 | Round | Fixed |
 |---|---|
@@ -31,6 +31,8 @@ All 66 tests pass (57 fast, 9 slow). Every round has a failing-tests commit, the
 | 4 Audit and API | R10 delay counted once · R11 surcharge in `total_cost` · R12 baseline risk taken before the scenario · M13 errors are 400 (bad input) or 404 (no route), and "établi" is gone |
 | 5 Explanations | R18 explanations compare the real routes (no invented %) · R17 shared routes are named in `also_best_for` · S4 Red Sea text doesn't claim rerouting |
 | 6 Suppliers | P1 a disruption adds its full delay (Suez +10 days, Hormuz +7) · P2 cost score = cheapest ÷ cost, always 0–1 |
+| 7 Model | New simulated dataset, p50/p85/p95 models, wired into routing with ETA ranges and SHAP drivers, live weather (R2, DS1–DS11, MR2–MR6, TI10–TI15). **The §7 manual-check ETAs below predate round 7**: each ETA now includes the model's p50 delay (check 1 is 618.6 h, not 545.1 h, with weather 0) |
+| 8 Cargo | N1 cargo rules enforced, R6 validation and `cargo_rules` in the response, N2 priority weights BALANCED's time |
 
 Infrastructure: `node_modules` untracked (`5091a1f`), uv project (`5e8d58a`), plain `pytest` finds `backend` (`919ba0d`).
 

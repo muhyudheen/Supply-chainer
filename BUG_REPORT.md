@@ -189,7 +189,7 @@ We fix in this order, one bug per commit, each with a test that fails before the
 
 ## Progress
 
-We worked in a different order from the plan above: the graph had to be fixed before scenarios and audit numbers could be tested on real routes. Each round starts with a commit of failing tests, then one commit per fix. Status as of 30 Sep 2026, 00:45 IST (`fb7959a`): 66 tests, all passing (57 fast, 9 slow).
+We worked in a different order from the plan above: the graph had to be fixed before scenarios and audit numbers could be tested on real routes. Each round starts with a commit of failing tests, then one commit per fix. Status as of 30 Sep 2026, 17:30 IST: 133 backend tests (123 fast, 10 slow) and 30 frontend tests, all passing.
 
 | Round | Scope | Tests | Fixes (commit) |
 |---|---|---|---|
@@ -197,8 +197,9 @@ We worked in a different order from the plan above: the graph had to be fixed be
 | 2 | Route graph (§3) | `test_round2.py` (`fa6835b`) | N7 `e9360d7`, N9/N4/N11 `035f392`, N10 `1feb6ff`, L1 `3469764` |
 | 3 | Scenarios (§2) | `test_round3.py` (`58ee39d`) | R9 `7c4adfe`, S2 `a13326f`, S3 `8f28e3c`, M7 `923d47a`, M14 `ed80422` |
 | 4 | Audit arithmetic and API errors (§4, §10) | `test_round4.py` (`7bdcc58`) | R10 `67b2c80`, R11 `77dfc62`, R12 `6329bc3`, M13 `4a7c433` |
-| 5 | Explanations and persona cards (§5) | `test_round5.py` (`98d6998`) | R18 `60031f7`, R17 `23cdd2a`, S4 `6fad6d2` |
+| 5 | Explanations and persona cards (§5) | `test_round5.py` (`98d6998`, R20 `63419e9`) | R18 `60031f7`, R17 `23cdd2a`, S4 `6fad6d2`, R20 `432a7e2` |
 | 6 | Supplier scoring (§9) | `test_round6.py` (`3eee1f2`) | P1 `3be38e9`, P2 `fb7959a` |
-| 7 | Model rebuild (§6, §7) | next | see `HANDOFF.md` §3 |
+| 7 | Model rebuild (§6, §7) | `test_dataset.py` (`1fa6354`, `fb64670`, `092a685`), `test_train.py` (`bff4ad7`), `test_round7.py` (`951870e`, `94f08f4`), frontend (`ae1d264`) | Dataset: `leg_features` `59cafe8` (TI10, TI11, TI14), builder `25db678` (DS1–DS9, DS11), `99a3e59`, `1fa362f`. Training: `01e7338` (MR2–MR5, TI12), artifact `97276b2` (MR6). Wiring: TI15 `4c14cff`, SHAP `b4f26e6`, weather `17ea7d8`, R2 `bf67c5f`, M10 part `ddc69d0`, dashboard `9a28ec6` |
+| 8 | Cargo type and priority (§9 R6) | `test_round8.py` (`d722582`, corrected `516baff`), frontend (`2a93455`) | N1 `05529a2` (typed by hand), R6 `ca7d773`, N2 `7c6b337`, dashboard `431e15e` |
 
 The frontend fixes (§8: F1–F10) are done by the teammate in `frontend/` and are tracked in `HANDOFF.md`. S1 (scenarios never reached a route) is resolved by the round 2 graph fix; the round 3 tests cover it.
