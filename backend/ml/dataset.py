@@ -27,7 +27,7 @@ from scipy.stats import gamma
 
 from backend.engine.multimodal_network import create_multimodal_network
 from backend.engine.weather_integration import WMO_SEVERITY_MAPPING
-from backend.ml.features import FEATURES, leg_features
+from backend.ml.features import CANALS, FEATURES, leg_features
 
 DEFAULT_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "leg_delays.csv")
 MODES = ["sea", "air", "rail", "road"]
@@ -63,7 +63,8 @@ WEATHER_K = {"sea": 1.0, "air": 0.8, "road": 0.5, "rail": 0.3}
 WEATHER_CODE_P = {0: .30, 1: .15, 2: .12, 3: .10, 45: .03, 48: .02, 51: .03, 53: .02, 61: .05, 63: .04, 65: .02,
                   71: .01, 73: .01, 80: .03, 81: .03, 82: .01, 95: .02, 96: .005, 99: .005}
 
-# Incidents (DS9): 4% of legs, twice that on chokepoint legs (assumed), severity s uniform 0.5-1.
+# Incidents (DS9): 4% of legs, twice that on legs touching a strait, cape or other open chokepoint (assumed);
+# canals keep 4%, because the canal anchor's p90 already holds the 2021 blockage. Severity s uniform 0.5-1.
 # Delay added = s * INCIDENT_H[mode], sized from the app's own scenarios (scenario_manager.py):
 # sea 72-240h (median 144h), Dubai air congestion 48h, Chennai road flood 48h. There is no rail
 # scenario, so rail takes 48h like the other land and air ones.
@@ -86,6 +87,13 @@ def sample_dwell(kind, rng, size):
     return rng.gamma(shape, scale, size)
 
 
+def incident_rate(G, u, v):
+    """Twice the rate if either end is a chokepoint that isn't a canal."""
+    open_chokepoint = any(G.nodes[n]["type"] == "choke_point" and G.nodes[n]["physical_id"] not in CANALS
+                          for n in (u, v))
+    return CHOKEPOINT_INCIDENT_RATE if open_chokepoint else INCIDENT_RATE
+
+
 def simulate_legs(G, legs, rng):
     """One row per (u, v, cargo_handled) leg: draw weather, incident and news, then the delay."""
     n = len(legs)
@@ -96,7 +104,7 @@ def simulate_legs(G, legs, rng):
     df = pd.DataFrame(rows, columns=FEATURES)
 
     # Incident and news first (DS4)
-    rate = np.where(df["chokepoint"] == 1, CHOKEPOINT_INCIDENT_RATE, INCIDENT_RATE)
+    rate = np.array([incident_rate(G, u, v) for u, v, _ in legs])
     incident = rng.random(n) < rate
     severity = rng.uniform(0.5, 1.0, n)
     calm_news = np.where(rng.random(n) < 0.15, rng.uniform(0.0, 0.3, n), 0.0)
