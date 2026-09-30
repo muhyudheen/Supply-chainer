@@ -8,11 +8,12 @@ import time
 from typing import List, Dict, Any, Optional, Tuple
 import pandas as pd
 
-# Load Production Artifacts
-MODEL_PATH = "./Execution/risk_model.pkl"
-ENCODER_PATH = "./Execution/label_encoders.pkl"
-NLP_ANCHORS_PATH = "./Execution/nlp_anchors.pt"
-CALIBRATION_PATH = "./Execution/calibration_profiles.json"
+# Load Production Artifacts. TI15: from the repo root found via this file, not the current folder
+_EXECUTION = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Execution")
+MODEL_PATH = os.path.normpath(os.path.join(_EXECUTION, "risk_model.pkl"))
+ENCODER_PATH = os.path.normpath(os.path.join(_EXECUTION, "label_encoders.pkl"))
+NLP_ANCHORS_PATH = os.path.normpath(os.path.join(_EXECUTION, "nlp_anchors.pt"))
+CALIBRATION_PATH = os.path.normpath(os.path.join(_EXECUTION, "calibration_profiles.json"))
 
 class ThreatIntelligencePredictor:
     """
