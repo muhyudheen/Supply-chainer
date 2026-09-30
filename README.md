@@ -287,6 +287,7 @@ Beyond fixing the listed bugs, we built:
 ## Team and AI Usage
 
 Muhammed Muhyudheen T (backend, model, docs) and Abel T Joseph (frontend). Claude Code (Claude Opus 5.5) was used throughout; what it wrote is listed in [`AI_USAGE.md`](AI_USAGE.md). Our development minutes are hand-written.
+Our development minutes, hand-written by the team, are in [`docs/Development_Minutes.pdf`](docs/Development_Minutes.pdf).
 
 ---
 
