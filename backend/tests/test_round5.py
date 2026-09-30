@@ -66,3 +66,23 @@ def test_s4_only_closures_claim_rerouting(sid):
     s = ScenarioManager.SCENARIOS[sid]
     if s["threat_level"] < 1.0:
         assert "rerout" not in s["reason"].lower(), s["reason"]
+
+
+# R20: SAFEST only claims to avoid FASTEST's threat when its own peak threat is lower
+def test_r20_safest_does_not_claim_to_avoid_an_equal_threat(rr):
+    cards = _cards(rr, "PORT-CHENNAI", "HUB-CHENNAI", "CHENNAI_FLOOD", mode="road")
+    fast, safe = cards["FASTEST"], cards["SAFEST"]
+    assert safe["threat_level"] == fast["threat_level"]  # both 0.75: the case that showed the bug
+    assert "Avoids" not in safe["explanation"], safe["explanation"]
+    assert f"Same peak threat as FASTEST ({fast['threat_level']})" in safe["explanation"], safe["explanation"]
+
+
+@pytest.mark.parametrize("trip", [
+    ("PORT-SHANGHAI", "PORT-ROTTERDAM", "RED_SEA_CONFLICT", "sea"),
+    ("PORT-CHENNAI", "HUB-CHENNAI", "CHENNAI_FLOOD", "road"),
+])
+def test_r20_avoids_only_when_lower(rr, trip):
+    src, dst, scenario, mode = trip
+    cards = _cards(rr, src, dst, scenario, mode)
+    fast, safe = cards["FASTEST"], cards["SAFEST"]
+    assert ("Avoids" in safe["explanation"]) == (safe["threat_level"] < fast["threat_level"]), safe["explanation"]
