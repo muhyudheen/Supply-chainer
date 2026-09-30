@@ -158,7 +158,8 @@ class RouteRecommender:
         cargo_rule = f"{cargo_type} cargo can't go by {', '.join(blocked_modes)}: {CARGO_REASONS.get(cargo_type, '')}"
         if transport_preference in blocked_modes:
             return {"error": cargo_rule, "status": 400}
-        balanced_time_weight = 0.3
+        # N2: urgent cargo makes BALANCED weigh time more (0.3 / 0.7), low priority less (0.3 / 1.2)
+        balanced_time_weight = 0.3 / PRIORITY_MULTIPLIERS[priority]
         cargo_rules = {
             "cargo_type": cargo_type,
             "excluded_modes": blocked_modes,
