@@ -103,3 +103,50 @@ export function supplierFacts(s) {
 export function hubNames(ids, namesById) {
   return (ids ?? []).map(id => namesById[id] ?? id);
 }
+
+// Round 7 (R2): the delay model's output, formatted as the API sent it (nothing is computed here).
+const oneDecimal = (x) => x.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const signedHours = (x) => `${x < 0 ? '−' : '+'}${oneDecimal(Math.abs(x))}h`;
+
+// The card's ETA range: p50 is the typical arrival (the card's ETA), p85 a bad day, p95 a very bad day.
+export function etaRange(rec) {
+  const r = rec?.eta_range;
+  return r ? { p50: `${oneDecimal(r.p50)}h`, p85: `${oneDecimal(r.p85)}h`, p95: `${oneDecimal(r.p95)}h` } : null;
+}
+
+// SHAP delay drivers at the quantile the persona planned with: the biggest ones (at least 0.5h) for the card,
+// and the full table for the audit panel, where calm transit plus every driver equals the total.
+export function delayDrivers(rec, n = 2) {
+  const d = rec?.audit_trace?.delay_drivers;
+  if (!d) return null;
+  return {
+    quantile: d.quantile,
+    top: d.drivers.filter(x => x.hours >= 0.5).slice(0, n).map(x => `${x.label} ${signedHours(x.hours)}`),
+    rows: [{ label: 'calm transit', value: `${oneDecimal(d.calm_transit_h)}h` },
+      ...d.drivers.map(x => ({ label: x.label, value: signedHours(x.hours) }))],
+    total: `${oneDecimal(d.total_h)}h`,
+  };
+}
+
+// A transit leg's typical (p50) model delay, and whether cargo is unloaded or transferred where it ends.
+export function legDelay(leg) {
+  return leg.type === 'transit' && leg.delay ? { p50: signedHours(leg.delay.p50), handled: !!leg.cargo_handled } : null;
+}
+
+// R17: the other personas that picked exactly this route.
+export function alsoBestFor(rec) {
+  const others = rec?.also_best_for ?? [];
+  return others.length ? `Also the ${others.join(' and ')} choice` : null;
+}
+
+// M10: the delay model and weather source the backend reports on /api/status.
+export function modelStatusView(status) {
+  const m = status?.delay_model;
+  if (!m) return null;
+  return {
+    trained: `${m.trained_at.slice(0, 16).replace('T', ' ')} UTC`,
+    rows: `${m.n_rows.toLocaleString('en-US')} simulated legs`,
+    coverage: `${(m.coverage_p85 * 100).toFixed(1)}%`,
+    weather: status.weather_source,
+  };
+}

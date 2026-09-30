@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 import EngineStatus from './EngineStatus.jsx';
 import {
-  apiError, buildOverrides, createRequestGate, debounce, endpointFor, hubNames, hubSearchUrl,
-  legFacts, parseCount, pickSelected, scenarioLegCount,
+  alsoBestFor, apiError, buildOverrides, createRequestGate, debounce, delayDrivers, endpointFor, etaRange,
+  hubNames, hubSearchUrl, legDelay, legFacts, modelStatusView, parseCount, pickSelected, scenarioLegCount,
 } from './uiLogic.js';
 
 // The audit trace holds raw floats (e.g. 16.95663775053027); show hours to 0.1 and dollars to the cent.
@@ -41,6 +41,13 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
   const [closedHubs, setClosedHubs] = useState([]);
   // The scenario the backend says it applied to the last result (F5), not the dropdown's current value
   const [activeScenario, setActiveScenario] = useState(null);
+  // Round 7: the delay model and weather source the backend reports (/api/status)
+  const [modelStatus, setModelStatus] = useState(null);
+  const loadModelStatus = () =>
+    fetch('/api/status')
+      .then(r => r.json())
+      .then(setModelStatus)
+      .catch(e => console.error("Failed to load model status", e));
 
   useEffect(() => {
     // Pull the live scenario list from the backend instead of hardcoding IDs here,
@@ -56,6 +63,7 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
         setHubNameById(Object.fromEntries(hubs.map(h => [h.id, h.display_name])));
       })
       .catch(e => console.error("Failed to load hubs", e));
+    loadModelStatus();
   }, []);
 
   const toggleAvoid = (id) =>
@@ -98,6 +106,7 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
         setSelectedIdx(0);
         setClosedHubs(data.closed_hubs ?? []);
         setActiveScenario(data.active_scenario ?? null);
+        loadModelStatus();  // live weather may have arrived since the page loaded
       }
     } catch (err) {
       setError("Engine connection failed. Verify backend status.");
@@ -318,19 +327,36 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
                   rec.persona === 'SAFEST' ? 'tag-safest' : 'tag-balanced'
                 }`}>{rec.persona}</span>
                 <div style={{display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.75rem', fontFamily: 'JetBrains Mono'}}>
-                   <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}><Clock size={12} /> {rec.adjusted_eta}h</span>
+                   <span style={{display: 'flex', alignItems: 'center', gap: '4px'}} title="Typical arrival (p50 of the delay model)"><Clock size={12} /> {rec.adjusted_eta}h</span>
                    <span style={{display: 'flex', alignItems: 'center', gap: '4px', color: rec.threat_level >= 0.5 ? '#ef4444' : '#94a3b8'}} title="Highest leg threat on this route">
                      <ShieldAlert size={12} /> {Math.round(rec.threat_level * 100)}%
                    </span>
                 </div>
               </div>
               <div style={{padding: '1.25rem'}}>
+                {alsoBestFor(rec) && (
+                  <span style={{fontSize: '0.65rem', fontWeight: 800, color: '#10b981', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem'}}>
+                    {alsoBestFor(rec).toUpperCase()}
+                  </span>
+                )}
+                {etaRange(rec) && (
+                  <div style={{fontSize: '0.75rem', fontFamily: 'JetBrains Mono', color: '#f8fafc', marginBottom: '0.5rem'}}
+                    title="Delay model: p50 typical, p85 a bad day, p95 a very bad day">
+                    ETA {etaRange(rec).p50} typical · {etaRange(rec).p85} p85 · {etaRange(rec).p95} p95
+                  </div>
+                )}
+                {delayDrivers(rec)?.top.length > 0 && (
+                  <div style={{fontSize: '0.7rem', color: '#f59e0b', marginBottom: '0.75rem'}}>
+                    Biggest delay drivers ({delayDrivers(rec).quantile}): {delayDrivers(rec).top.join(', ')}
+                  </div>
+                )}
                 <h3 style={{fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem'}}>{rec.explanation}</h3>
                 
                 <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem', borderLeft: '2px solid #1e293b', paddingLeft: '1rem', marginLeft: '0.5rem'}}>
                   {rec.legs.map((leg, lIdx) => {
                     const isTransfer = leg.type === 'transfer';
                     const facts = legFacts(leg);
+                    const delay = legDelay(leg);
                     return (
                       <div key={lIdx} style={{display: 'flex', flexDirection: 'column', opacity: isTransfer ? 0.7 : 1}}>
                         <span style={{
@@ -351,6 +377,11 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
                         <span style={{fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'JetBrains Mono'}}>
                           {facts.time} · {facts.cost} · threat <span style={{color: leg.threat >= 0.5 ? '#ef4444' : '#94a3b8'}}>{facts.threat}</span>
                         </span>
+                        {delay && (
+                          <span style={{fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'JetBrains Mono'}}>
+                            model delay {delay.p50} (p50){delay.handled ? ' · cargo handled here' : ''}
+                          </span>
+                        )}
                         {facts.reason && (
                           <span style={{fontSize: '0.7rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px'}}>
                             <AlertTriangle size={11} /> {facts.reason}
@@ -386,7 +417,18 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
                <div>Transit: {hours(selected.audit_trace.eta.transit)}h</div>
                <div>Transfer: +{hours(selected.audit_trace.eta.transfer)}h</div>
                <div>Scenario Impact: {selected.audit_trace.eta.scenario > 0 ? `+${hours(selected.audit_trace.eta.scenario)}h` : 'None'}</div>
+               <div>Predicted Delay (p50): +{hours(selected.audit_trace.eta.predicted_delay)}h</div>
+               <div style={{fontWeight: 700, color: '#f8fafc'}}>= ETA {selected.adjusted_eta}h</div>
             </div>
+
+            {delayDrivers(selected) && (
+              <div className="audit-trace-box" style={{borderLeft: '4px solid #a855f7'}}>
+                 <div style={{marginBottom: '0.5rem', fontWeight: 700, color: '#f8fafc'}}>Delay Drivers (SHAP, {delayDrivers(selected).quantile})</div>
+                 {delayDrivers(selected).rows.map(r => <div key={r.label}>{r.label}: {r.value}</div>)}
+                 <div style={{fontWeight: 700, color: '#f8fafc'}}>= {delayDrivers(selected).total} model delay</div>
+                 <div style={{fontSize: '0.65rem', color: '#64748b', marginTop: '0.25rem'}}>Compared with the same legs in calm conditions</div>
+              </div>
+            )}
 
             <div className="audit-trace-box" style={{borderLeft: '4px solid #10b981'}}>
                <div style={{marginBottom: '0.5rem', fontWeight: 700, color: '#f8fafc'}}>Cost Composition</div>
@@ -402,6 +444,15 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
                {activeScenario && <div>Legs hit: {scenarioLegCount(selected)} of {selected.legs.length}</div>}
                {closedHubs.length > 0 && <div>Closed: {hubNames(closedHubs, hubNameById).join(', ')}</div>}
             </div>
+
+            {modelStatusView(modelStatus) && (
+              <div className="audit-trace-box" style={{borderLeft: '4px solid #64748b'}}>
+                 <div style={{marginBottom: '0.5rem', fontWeight: 700, color: '#f8fafc'}}>Delay Model</div>
+                 <div>Trained {modelStatusView(modelStatus).trained} on {modelStatusView(modelStatus).rows}</div>
+                 <div>Held-out p85 coverage: {modelStatusView(modelStatus).coverage}</div>
+                 <div>Weather: {modelStatusView(modelStatus).weather}</div>
+              </div>
+            )}
           </div>
         ) : (
           <div style={{textAlign: 'center', color: '#64748b', marginTop: '2rem'}}>
