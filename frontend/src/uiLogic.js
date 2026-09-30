@@ -150,3 +150,15 @@ export function modelStatusView(status) {
     weather: status.weather_source,
   };
 }
+
+// Round 8 (R6): the cargo and priority rules the backend applied (cargo_rules); null lines when nothing changed.
+export function cargoRulesView(rules) {
+  if (!rules) return null;
+  const cargo = rules.excluded_modes.length
+    ? `${rules.cargo_type}: ${rules.excluded_modes.join(', ')} excluded. ${rules.reasons.map(r => r.split(': ').slice(1).join(': ')).join(' ')}`
+    : null;
+  const priority = rules.priority !== 'normal'
+    ? `Priority ${rules.priority}: BALANCED weighs time ${rules.balanced_time_weight} (normal 0.3).`
+    : null;
+  return { cargo, priority };
+}

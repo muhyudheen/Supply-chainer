@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import EngineStatus from './EngineStatus.jsx';
 import {
-  alsoBestFor, apiError, buildOverrides, createRequestGate, debounce, delayDrivers, endpointFor, etaRange,
+  alsoBestFor, apiError, buildOverrides, cargoRulesView, createRequestGate, debounce, delayDrivers, endpointFor, etaRange,
   hubNames, hubSearchUrl, legDelay, legFacts, modelStatusView, parseCount, pickSelected, scenarioLegCount,
 } from './uiLogic.js';
 
@@ -43,6 +43,8 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
   const [activeScenario, setActiveScenario] = useState(null);
   // Round 7: the delay model and weather source the backend reports (/api/status)
   const [modelStatus, setModelStatus] = useState(null);
+  // Round 8: the cargo and priority rules the backend applied to the last result
+  const [cargoRules, setCargoRules] = useState(null);
   const loadModelStatus = () =>
     fetch('/api/status')
       .then(r => r.json())
@@ -101,11 +103,13 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
         setRecommendations([]);
         setClosedHubs([]);
         setActiveScenario(null);
+        setCargoRules(null);
       } else {
         setRecommendations(data.recommendations ?? []);
         setSelectedIdx(0);
         setClosedHubs(data.closed_hubs ?? []);
         setActiveScenario(data.active_scenario ?? null);
+        setCargoRules(data.cargo_rules ?? null);
         loadModelStatus();  // live weather may have arrived since the page loaded
       }
     } catch (err) {
@@ -232,6 +236,25 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
         </div>
 
         <div className="sc-input-group">
+          <label className="sc-label">Cargo Type</label>
+          <select value={cargoType} onChange={e => setCargoType(e.target.value)} className="sc-select">
+            <option value="general">General</option>
+            <option value="hazardous_waste">Hazardous waste (no air)</option>
+            <option value="perishable_urgent">Perishable, urgent (no sea)</option>
+            <option value="oversize_heavy">Oversize / heavy (no road)</option>
+          </select>
+        </div>
+
+        <div className="sc-input-group">
+          <label className="sc-label">Priority</label>
+          <select value={priority} onChange={e => setPriority(e.target.value)} className="sc-select">
+            <option value="urgent">Urgent</option>
+            <option value="normal">Normal</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+
+        <div className="sc-input-group">
           <label className="sc-label">Routing Policy</label>
           <select value={routingPolicy} onChange={e => setRoutingPolicy(e.target.value)} className="sc-select">
             <option value="STRICT">STRICT (Hard Exclusion)</option>
@@ -308,6 +331,17 @@ const RouteRecommender = ({ onNavigate, engineStatus }) => {
             <div>
               <span style={{fontWeight: 800, fontSize: '0.75rem', display: 'block'}}>CLOSED BY SCENARIO</span>
               <span style={{fontSize: '0.875rem'}}>{hubNames(closedHubs, hubNameById).join(', ')} closed. These routes avoid {closedHubs.length > 1 ? 'them' : 'it'}.</span>
+            </div>
+          </div>
+        )}
+
+        {(cargoRulesView(cargoRules)?.cargo || cargoRulesView(cargoRules)?.priority) && (
+          <div className="scenario-banner animate-slide-in">
+            <Package size={20} />
+            <div>
+              <span style={{fontWeight: 800, fontSize: '0.75rem', display: 'block'}}>CARGO RULES APPLIED</span>
+              {cargoRulesView(cargoRules).cargo && <span style={{fontSize: '0.875rem', display: 'block'}}>{cargoRulesView(cargoRules).cargo}</span>}
+              {cargoRulesView(cargoRules).priority && <span style={{fontSize: '0.875rem', display: 'block'}}>{cargoRulesView(cargoRules).priority}</span>}
             </div>
           </div>
         )}
