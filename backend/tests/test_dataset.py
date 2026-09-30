@@ -6,6 +6,7 @@ module fails every test on its own instead of one collection error.
 import importlib
 import os
 
+import networkx as nx
 import numpy as np
 import pandas as pd
 import pytest
@@ -40,6 +41,11 @@ def _p(x, q):
     return float(np.percentile(x, q))
 
 
+def _en_route_only(df):
+    """Rows with no dwell and no incident: their delay is the en-route part alone."""
+    return df[(df["cargo_handled"] == 0) & (df["arrives_canal"] == 0) & ~df["incident"]]
+
+
 # 1. DS4: the news score is drawn before the delay and never computed from it
 def test_ds4_no_leakage_on_calm_rows(df):
     calm = df[~df["incident"]]
@@ -48,18 +54,20 @@ def test_ds4_no_leakage_on_calm_rows(df):
     assert abs(r) < 0.05, r
 
 
-# 2. DS5: weather changes the delay (it had no effect: sea p85 56.5h clear vs 55.3h stormy)
+# 2. DS5: weather changes the delay (it had no effect: sea p85 56.5h clear vs 55.3h stormy).
+#    Weather acts on the en-route part, so the check looks at rows without dwell.
 def test_ds5_stormy_sea_is_slower_than_clear_sea(df):
-    sea = df[df["mode"] == "sea"]
+    sea = _en_route_only(df[df["mode"] == "sea"])
     stormy, clear = sea[sea["weather"] >= 0.7], sea[sea["weather"] <= 0.1]
     assert len(stormy) > 200 and len(clear) > 200
     assert _p(stormy["delay_h"], 85) > 1.2 * _p(clear["delay_h"], 85)
 
 
-# 3. DS6: distance changes the delay (Shanghai -> Singapore and Shanghai -> Rotterdam had the same)
+# 3. DS6: distance changes the delay (Shanghai -> Singapore and Shanghai -> Rotterdam had the same).
+#    Dwell doesn't depend on distance; the en-route part does.
 @pytest.mark.parametrize("mode", ["sea", "air", "rail", "road"])
 def test_ds6_long_legs_have_a_higher_p85(df, mode):
-    m = df[df["mode"] == mode]
+    m = _en_route_only(df[df["mode"] == mode])
     short = m[m["distance_km"] <= m["distance_km"].quantile(0.25)]
     long_ = m[m["distance_km"] >= m["distance_km"].quantile(0.75)]
     assert _p(long_["delay_h"], 85) > 1.2 * _p(short["delay_h"], 85)
@@ -68,12 +76,44 @@ def test_ds6_long_legs_have_a_higher_p85(df, mode):
 # 4. DS3: the gamma matches both the stated median and the stated p90 (only the median was used)
 def test_ds3_anchor_median_and_p90_within_10_percent(dataset):
     rng = np.random.default_rng(SEED)
-    assert set(dataset.ANCHORS) == {"sea", "air", "rail", "road"}
-    for mode, a in dataset.ANCHORS.items():
-        assert a["source"], mode  # DS1/DS2: every anchor says where its numbers come from
-        x = dataset.sample_base_delay(mode, rng, 200_000)
-        assert abs(_p(x, 50) / a["median"] - 1) < 0.10, (mode, _p(x, 50), a["median"])
-        assert abs(_p(x, 90) / a["p90"] - 1) < 0.10, (mode, _p(x, 90), a["p90"])
+    assert set(dataset.ANCHORS) == {"sea", "air", "rail", "road", "canal"}
+    assert (dataset.ANCHORS["canal"]["median"], dataset.ANCHORS["canal"]["p90"]) == (14.0, 144.0)  # organizers' Suez
+    for kind, a in dataset.ANCHORS.items():
+        assert a["source"], kind  # DS1/DS2: every anchor says where its numbers come from
+        x = dataset.sample_dwell(kind, rng, 200_000)
+        assert abs(_p(x, 50) / a["median"] - 1) < 0.10, (kind, _p(x, 50), a["median"])
+        assert abs(_p(x, 90) / a["p90"] - 1) < 0.10, (kind, _p(x, 90), a["p90"])
+
+
+# Dwell (the anchors) applies only where cargo is handled at a port, terminal or airport
+@pytest.mark.parametrize("mode", ["sea", "air", "rail", "road"])
+def test_dwell_only_where_cargo_is_handled(features, df, mode):
+    assert (df.loc[~df["dest_type"].isin(features.TERMINAL_TYPES), "cargo_handled"] == 0).all()
+    m = df[(df["mode"] == mode) & (df["arrives_canal"] == 0) & ~df["incident"]]
+    handled, passing = m[m["cargo_handled"] == 1], m[m["cargo_handled"] == 0]
+    assert len(handled) > 200 and len(passing) > 200
+    assert handled["delay_h"].median() > 5 * passing["delay_h"].median()
+
+
+# The Suez anchor applies to canals (Suez, Panama), not to open straits
+def test_canal_arrivals_wait_longer_than_strait_arrivals(df):
+    calm = df[(df["dest_type"] == "choke_point") & ~df["incident"]]
+    canal, strait = calm[calm["arrives_canal"] == 1], calm[calm["arrives_canal"] == 0]
+    assert len(canal) > 30 and len(strait) > 30
+    assert canal["delay_h"].median() > 2 * strait["delay_h"].median()
+
+
+# Sanity: the delay stays a modest share of a long voyage (dwell at every port call would add 150h+)
+def test_shanghai_rotterdam_p50_delay_under_a_quarter_of_travel_time(dataset, G):
+    sea = G.edge_subgraph([(u, v) for u, v, d in G.edges(data=True) if d["transport_mode"] == "sea"])
+    path = nx.shortest_path(sea, "PORT-SHANGHAI:sea", "PORT-ROTTERDAM:sea", weight="baseline_time")
+    legs = list(zip(path, path[1:]))
+    travel = sum(G[u][v]["baseline_time"] for u, v in legs)
+    assert abs(travel - 545.1) < 1  # manual check 1 in HANDOFF.md
+    rng = np.random.default_rng(SEED)
+    p50 = sum(dataset.simulate_legs(G, [(u, v, i == len(legs) - 1)] * 4_000, rng)["delay_h"].median()
+              for i, (u, v) in enumerate(legs))
+    assert p50 < 0.25 * travel, p50
 
 
 # 5. DS9: incidents actually happen (0.4% of rows had one)
@@ -86,7 +126,8 @@ def test_ti11_features_come_from_leg_features(features, df, G):
     assert [c for c in df.columns if c in features.FEATURES] == list(features.FEATURES)
     assert set(df.columns) == set(features.FEATURES) | {"delay_h", "incident", "u", "v"}
     for row in df.sample(300, random_state=SEED).to_dict("records"):
-        again = features.leg_features(G, row["u"], row["v"], weather=row["weather"], news=row["news"])
+        again = features.leg_features(G, row["u"], row["v"], cargo_handled=bool(row["cargo_handled"]),
+                                      weather=row["weather"], news=row["news"])
         assert again == {k: row[k] for k in features.FEATURES}
 
 
@@ -101,17 +142,17 @@ def test_ti10_every_transit_leg_has_features(features, G):
     """The live app can ask about any leg of the graph, so no hub may be missing from a lookup table."""
     for u, v, d in G.edges(data=True):
         if d["type"] == "transit":
-            f = features.leg_features(G, u, v)
-            assert f["weather"] == 0.0 and f["news"] == 0.0
+            f = features.leg_features(G, u, v, cargo_handled=True)
+            assert f["weather"] == 0.0 and f["news"] == 0.0  # no live data means 0, the offline value
 
 
 def test_ti14_unknown_inputs_raise(features, G):
     u, v = next((u, v) for u, v, d in G.edges(data=True) if d["type"] == "transfer")
     with pytest.raises(ValueError):
-        features.leg_features(G, u, v)  # a transfer is not a transit leg
+        features.leg_features(G, u, v, cargo_handled=False)  # a transfer is not a transit leg
     u, v = next((u, v) for u, v, d in G.edges(data=True) if d["type"] == "transit")
     with pytest.raises(ValueError):
-        features.leg_features(G, u, v, weather=1.5)
+        features.leg_features(G, u, v, cargo_handled=False, weather=1.5)
 
 
 # 7. DS11/MR6: same seed, same dataset; paths don't depend on the current folder
