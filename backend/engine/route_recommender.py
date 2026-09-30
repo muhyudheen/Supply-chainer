@@ -3,7 +3,8 @@ import numpy as np
 import math
 import time
 from typing import List, Dict, Any, Optional
-from .multimodal_network import MODE_PROFILES, create_multimodal_network, excluded_modes
+from .multimodal_network import (MODE_PROFILES, CARGO_REASONS, PRIORITY_MULTIPLIERS, create_multimodal_network,
+                                 excluded_modes)
 from .threat_intelligence import ThreatIntelligencePredictor, ContrastiveNLPEngine, CARFFilter
 from .news_ingestion import DynamicNewsIngestor
 from .node_resolver import NodeResolver
@@ -147,7 +148,25 @@ class RouteRecommender:
             return d if d and node_data.get("mode") == d["mode"] else None
         
         blocked_modes = excluded_modes(cargo_type)
-        
+
+        # R6: cargo type and priority are checked and reported, not silently ignored
+        cargo_types = ["general", *CARGO_REASONS]
+        if cargo_type not in cargo_types:
+            return {"error": f"Unknown cargo_type '{cargo_type}'. Valid: {', '.join(cargo_types)}", "status": 400}
+        if priority not in PRIORITY_MULTIPLIERS:
+            return {"error": f"Unknown priority '{priority}'. Valid: {', '.join(PRIORITY_MULTIPLIERS)}", "status": 400}
+        cargo_rule = f"{cargo_type} cargo can't go by {', '.join(blocked_modes)}: {CARGO_REASONS.get(cargo_type, '')}"
+        if transport_preference in blocked_modes:
+            return {"error": cargo_rule, "status": 400}
+        balanced_time_weight = 0.3
+        cargo_rules = {
+            "cargo_type": cargo_type,
+            "excluded_modes": blocked_modes,
+            "reasons": [f"{m}: {CARGO_REASONS[cargo_type]}" for m in blocked_modes],
+            "priority": priority,
+            "balanced_time_weight": round(balanced_time_weight, 2),
+        }
+
         # 3. Persona Optimization
         candidates = []
         for persona in ["FASTEST", "SAFEST", "BALANCED"]:
@@ -207,7 +226,7 @@ class RouteRecommender:
                         return (base_t + delay) * risk_penalty
                     else: # BALANCED (ECONOMIC leaning)
                         # High cost penalty for transfers and expensive modes
-                        time_weight = 0.3
+                        time_weight = balanced_time_weight
                         cost_weight = 0.5
                         risk_weight = 0.2
                         return (base_t + delay)*time_weight + (base_c / 150.0)*cost_weight + (threat * 40.0)*risk_weight
@@ -318,7 +337,10 @@ class RouteRecommender:
                 print(f"[ROUTING ERROR] {persona}: {e}")
 
         if not candidates:
-            return {"error": "No valid multimodal route found under the current constraints.", "status": 404}
+            error = "No valid multimodal route found under the current constraints."
+            if blocked_modes:  # R6: say which cargo rule removed the options
+                error += f" {cargo_rule}"
+            return {"error": error, "status": 404}
 
         # R18: explanations compare the routes against each other, using only real numbers
         by_persona = {c["persona"]: c for c in candidates}
@@ -345,6 +367,7 @@ class RouteRecommender:
             "origin": source, "destination": destination,
             "active_scenario": active_scenario["name"] if active_scenario else None,
             "closed_hubs": closed_hubs,
+            "cargo_rules": cargo_rules,
             "recommendations": final[:3]
         }
 
