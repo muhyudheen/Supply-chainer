@@ -1,6 +1,7 @@
 """Round 7 step 3: the delay model wired into routing (R2), ETA ranges, SHAP delay drivers, live weather, TI15.
 
-FASTEST adds each leg's p50 delay, BALANCED p85, SAFEST p95. Runs without the NLP model (demo mode).
+Routing: FASTEST plans with each leg's p50 delay, BALANCED p85, SAFEST p95. Every card then shows p50 as its
+ETA with the full p50/p85/p95 range, so cards compare like with like (owner's decision). Runs in demo mode.
 """
 import os
 
@@ -44,13 +45,27 @@ def _node(leg, end):
     return f"{leg[end]}:{leg['mode'].lower()}"
 
 
-# R2: every card's ETA carries its persona's quantile of the model's delay
-def test_r2_each_persona_adds_its_quantile(rr):
+# R2: every card's ETA is the schedule plus the model's p50 delay, whichever persona planned it
+def test_r2_every_card_shows_the_p50_eta(rr):
     for card in _all_cards(rr):
-        q = QUANTILE_OF[card["persona"]]
         predicted = card["audit_trace"]["eta"]["predicted_delay"]
-        assert predicted == pytest.approx(sum(leg["delay"][q] for leg in card["legs"]), abs=0.5)
-        assert card["adjusted_eta"] == pytest.approx(card["eta_range"][q], abs=0.2)
+        assert predicted == pytest.approx(sum(leg["delay"]["p50"] for leg in card["legs"]), abs=0.5)
+        assert card["adjusted_eta"] == pytest.approx(card["eta_range"]["p50"], abs=0.2)
+
+
+# R2: each persona plans with its own quantile: SAFEST cuts the bad-case tail, FASTEST the typical time
+@pytest.mark.parametrize("dst", ["PORT-ROTTERDAM", "PORT-PIRAEUS"])
+def test_r2_each_persona_plans_with_its_quantile(rr, dst):
+    cards = _cards(rr, "PORT-SHANGHAI", dst)
+    fast, safe = cards["FASTEST"], cards["SAFEST"]  # separate routes on these trips
+    assert safe["eta_range"]["p95"] <= fast["eta_range"]["p95"]
+    assert fast["eta_range"]["p50"] <= safe["eta_range"]["p50"]
+
+
+def test_safest_states_its_real_p95_difference(rr):
+    cards = _cards(rr, "PORT-SHANGHAI", "PORT-ROTTERDAM")
+    tail = cards["FASTEST"]["eta_range"]["p95"] - cards["SAFEST"]["eta_range"]["p95"]
+    assert f"p95 is {tail:.1f}h lower than FASTEST's" in cards["SAFEST"]["explanation"], cards["SAFEST"]["explanation"]
 
 
 def test_r2_route_choice_follows_the_model():
@@ -68,6 +83,7 @@ def test_r2_route_choice_follows_the_model():
 def test_eta_range_is_ordered_and_above_the_schedule(rr):
     for card in _all_cards(rr):
         r, eta = card["eta_range"], card["audit_trace"]["eta"]
+        assert all(type(x) is float for x in r.values())  # plain floats for the JSON response
         assert r["p50"] <= r["p85"] <= r["p95"]
         assert r["p50"] >= eta["transit"] + eta["transfer"] + eta["scenario"] - 0.1
 
@@ -111,7 +127,8 @@ def test_shap_drivers_add_up_to_the_models_delay(rr):
         assert d["quantile"] == QUANTILE_OF[card["persona"]]
         assert {x["feature"] for x in d["drivers"]} == {"cargo_handled", "arrives_canal", "chokepoint", "weather", "news"}
         assert d["calm_transit_h"] + sum(x["hours"] for x in d["drivers"]) == pytest.approx(d["total_h"], abs=0.1)
-        assert d["total_h"] == pytest.approx(card["audit_trace"]["eta"]["predicted_delay"], rel=0.05, abs=1.0)
+        planned = sum(leg["delay"][d["quantile"]] for leg in card["legs"])
+        assert d["total_h"] == pytest.approx(planned, rel=0.05, abs=1.0)
 
 
 def test_shap_values_equal_the_shap_librarys(rr):

@@ -23,14 +23,15 @@ def _cards(rr, src, dst, scenario=None, mode="sea"):
 
 # R17: when personas pick the same route, the card says so instead of silently dropping them
 def test_r17_every_persona_is_accounted_for(rr):
-    cards = _cards(rr, "PORT-SHANGHAI", "PORT-ROTTERDAM")
+    # Round 7: with the delay model each persona picks its own Shanghai -> Rotterdam route; this trip still merges
+    cards = _cards(rr, "PORT-JEBEL", "PORT-SHANGHAI")
     covered = set(cards) | {p for c in cards.values() for p in c["also_best_for"]}
     assert covered == {"FASTEST", "SAFEST", "BALANCED"}
     assert len(cards) < 3  # this trip has shared routes, so the merge is actually exercised
 
 
 def test_r17_merged_card_explains_it(rr):
-    for card in _cards(rr, "PORT-SHANGHAI", "PORT-ROTTERDAM").values():
+    for card in _cards(rr, "PORT-JEBEL", "PORT-SHANGHAI").values():
         for p in card["also_best_for"]:
             assert p in card["explanation"]
 
