@@ -3,7 +3,7 @@ import numpy as np
 import math
 import time
 from typing import List, Dict, Any, Optional
-from .multimodal_network import MODE_PROFILES, create_multimodal_network
+from .multimodal_network import MODE_PROFILES, create_multimodal_network, excluded_modes
 from .threat_intelligence import ThreatIntelligencePredictor, ContrastiveNLPEngine, CARFFilter
 from .news_ingestion import DynamicNewsIngestor
 from .node_resolver import NodeResolver
@@ -146,6 +146,8 @@ class RouteRecommender:
             d = disruptions.get(node_data.get("physical_id"))
             return d if d and node_data.get("mode") == d["mode"] else None
         
+        blocked_modes = excluded_modes(cargo_type)
+        
         # 3. Persona Optimization
         candidates = []
         for persona in ["FASTEST", "SAFEST", "BALANCED"]:
@@ -167,6 +169,9 @@ class RouteRecommender:
                         if d["transport_mode"] not in allowed_modes:
                             edges_to_remove.append((u, v))
                     G_p.remove_edges_from(edges_to_remove)
+                    
+                if blocked_modes:
+                    G_p.remove_edges_from([(u, v) for u, v, d in G_p.edges(data=True) if d["transport_mode"] in blocked_modes])
 
                 # L1: the trip may start and end in any mode at origin/destination, at no cost
                 for n in res_s["nodes"]:

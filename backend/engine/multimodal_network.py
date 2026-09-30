@@ -11,6 +11,17 @@ MODE_PROFILES = {
     "sea": {"speed": 35, "cost_per_km": 0.15, "cargo_restrictions": ["perishable_urgent"]}
 }
 
+# N1: why each cargo type can't use a mode. The simplified rules in MODE_PROFILES, not real regulations.
+CARGO_REASONS = {
+    "hazardous_waste": "Many hazardous materials are forbidden or restricted on aircraft.",
+    "perishable_urgent": "Sea transit takes weeks; urgent perishables would spoil.",
+    "oversize_heavy": "Oversize or heavy loads exceed normal road size and weight limits.",
+}
+
+def excluded_modes(cargo_type):
+    """Modes that can't carry this cargo type, read from MODE_PROFILES (N1)."""
+    return sorted(m for m, p in MODE_PROFILES.items() if cargo_type in p["cargo_restrictions"])
+
 PRIORITY_MULTIPLIERS = {
     "low": 1.2,
     "normal": 1.0,
