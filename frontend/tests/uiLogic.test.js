@@ -172,3 +172,65 @@ test('F10: App passes the status down and both pages show it', () => {
   for (const page of ['RouteRecommender.jsx', 'SupplierIntelligence.jsx'])
     assert.ok(source(page).includes('<EngineStatus status={engineStatus}'), page);
 });
+
+// Round 7 (R2): the delay model's output on the dashboard, read from the API, never computed here
+const MODEL_CARD = {
+  persona: 'SAFEST', adjusted_eta: 623.3, also_best_for: ['BALANCED'],
+  eta_range: { p50: 623.3, p85: 801.8, p95: 1005.6 },
+  audit_trace: {
+    eta: { transit: 545.4, transfer: 0, scenario: 0, predicted_delay: 77.9 },
+    delay_drivers: {
+      quantile: 'p95', calm_transit_h: 96.4, total_h: 441.1,
+      drivers: [
+        { feature: 'cargo_handled', label: 'terminal dwell', hours: 175.3 },
+        { feature: 'arrives_canal', label: 'canal queue', hours: 169.1 },
+        { feature: 'chokepoint', label: 'chokepoint risk', hours: 0.3 },
+        { feature: 'news', label: 'news', hours: 0 },
+        { feature: 'weather', label: 'weather', hours: -0.2 },
+      ],
+    },
+  },
+};
+
+test('R2: etaRange shows the p50/p85/p95 range the API sent', () => {
+  assert.deepEqual(ui.etaRange(MODEL_CARD), { p50: '623.3h', p85: '801.8h', p95: '1,005.6h' });
+  assert.equal(ui.etaRange({}), null);
+});
+
+test('R2: delayDrivers lists the biggest drivers and a table that adds up', () => {
+  const d = ui.delayDrivers(MODEL_CARD);
+  assert.equal(d.quantile, 'p95');
+  assert.deepEqual(d.top, ['terminal dwell +175.3h', 'canal queue +169.1h']);
+  assert.deepEqual(d.rows.map(r => r.value), ['96.4h', '+175.3h', '+169.1h', '+0.3h', '+0.0h', '−0.2h']);
+  assert.equal(d.total, '441.1h');
+  assert.equal(ui.delayDrivers({ audit_trace: {} }), null);
+});
+
+test('R2: legDelay shows a transit leg\'s p50 delay and where cargo is handled', () => {
+  assert.deepEqual(ui.legDelay({ type: 'transit', delay: { p50: 34.6, p85: 90, p95: 150 }, cargo_handled: true }),
+    { p50: '+34.6h', handled: true });
+  assert.equal(ui.legDelay({ type: 'transfer', delay: { p50: 0, p85: 0, p95: 0 }, cargo_handled: false }), null);
+});
+
+test('R17: alsoBestFor names the personas that picked the same route', () => {
+  assert.equal(ui.alsoBestFor(MODEL_CARD), 'Also the BALANCED choice');
+  assert.equal(ui.alsoBestFor({ also_best_for: ['SAFEST', 'BALANCED'] }), 'Also the SAFEST and BALANCED choice');
+  assert.equal(ui.alsoBestFor({ also_best_for: [] }), null);
+});
+
+test('M10: modelStatusView shows the real model and weather source from /api/status', () => {
+  const v = ui.modelStatusView({
+    delay_model: { trained_at: '2026-09-30T05:59:31+00:00', n_rows: 50000, coverage_p85: 0.855 },
+    weather_source: 'offline (demo mode: not fetched)',
+  });
+  assert.deepEqual(v, { trained: '2026-09-30 05:59 UTC', rows: '50,000 simulated legs',
+    coverage: '85.5%', weather: 'offline (demo mode: not fetched)' });
+  assert.equal(ui.modelStatusView({}), null);
+});
+
+test('R2: the route page renders the model output and counts the predicted delay in the ETA audit', () => {
+  const src = source('RouteRecommender.jsx');
+  for (const call of ['etaRange(rec)', 'delayDrivers(rec)', 'legDelay(leg)', 'alsoBestFor(rec)',
+    'delayDrivers(selected)', 'modelStatusView(', "fetch('/api/status')", 'audit_trace.eta.predicted_delay'])
+    assert.ok(src.includes(call), call);
+});
