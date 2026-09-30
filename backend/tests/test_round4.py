@@ -27,7 +27,9 @@ def test_r10_eta_breakdown_sums_to_adjusted_eta(rr):
     route = _red_sea_fastest(rr)
     eta = route["audit_trace"]["eta"]
     assert eta["scenario"] == 72
-    assert eta["transit"] + eta["transfer"] + eta["scenario"] == pytest.approx(route["adjusted_eta"], abs=0.2)
+    # Round 7 added the model's predicted delay as its own bucket
+    assert eta["transit"] + eta["transfer"] + eta["scenario"] + eta["predicted_delay"] == \
+        pytest.approx(route["adjusted_eta"], abs=0.2)
 
 
 # R11: the scenario surcharge is part of the total cost
