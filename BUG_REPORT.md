@@ -2,7 +2,7 @@
 
 TatHack '26 prelim · 29 Sep 2026 · team muhyudheen
 
-**How we found these.** We ran the app (dashboard and `/api/recommend`) on a CPU-only Windows laptop, read every file on the live code path plus the model-training scripts, and re-ran the NLP scorer, the route graph and the shipped model in scripts to measure the numbers below. Every claim here was either reproduced by running code or read directly from the cited lines. The full per-file list, with 126 entries, is in `BUG_LIST.md`; the IDs in brackets refer to it.
+**How we found these.** We ran the app (dashboard and `/api/recommend`) on a CPU-only Windows laptop, read every file on the live code path plus the model-training scripts, and re-ran the NLP scorer, the route graph and the shipped model in scripts to measure the numbers below. Every claim here was either reproduced by running code or read directly from the cited lines. The full per-file list, with 130 entries (126 from inspection, 4 found while fixing), is in `BUG_LIST.md`; the IDs in brackets refer to it.
 
 **AI use.** Code reading, the measurement scripts and the drafting of this report were done with Claude Code. The team ran the tests and reviewed every finding (Rule 6).
 
@@ -186,3 +186,19 @@ We fix in this order, one bug per commit, each with a test that fails before the
 5. **Explanations and dashboard:** R18, F1, F2, F5, R17.
 6. **Supplier bugs:** P1, P2, F7.
 7. **Model rebuild (feature work):** a leak-free, hub-agnostic, multi-quantile model, wired into routing with SHAP explanations.
+
+## Progress
+
+We worked in a different order from the plan above: the graph had to be fixed before scenarios and audit numbers could be tested on real routes. Each round starts with a commit of failing tests, then one commit per fix. Status as of 30 Sep 2026, 00:45 IST (`fb7959a`): 66 tests, all passing (57 fast, 9 slow).
+
+| Round | Scope | Tests | Fixes (commit) |
+|---|---|---|---|
+| 1 | NLP threat engine (§1) | `test_round1.py` (`fae0127`) | TI1 `683d04a`, TI2/R3 `a460c64`, TI3 `b83716f`, TI5 `ae2df38`, TI7–TI9 `fdaf10f`, W1 `f090f34` |
+| 2 | Route graph (§3) | `test_round2.py` (`fa6835b`) | N7 `e9360d7`, N9/N4/N11 `035f392`, N10 `1feb6ff`, L1 `3469764` |
+| 3 | Scenarios (§2) | `test_round3.py` (`58ee39d`) | R9 `7c4adfe`, S2 `a13326f`, S3 `8f28e3c`, M7 `923d47a`, M14 `ed80422` |
+| 4 | Audit arithmetic and API errors (§4, §10) | `test_round4.py` (`7bdcc58`) | R10 `67b2c80`, R11 `77dfc62`, R12 `6329bc3`, M13 `4a7c433` |
+| 5 | Explanations and persona cards (§5) | `test_round5.py` (`98d6998`) | R18 `60031f7`, R17 `23cdd2a`, S4 `6fad6d2` |
+| 6 | Supplier scoring (§9) | `test_round6.py` (`3eee1f2`) | P1 `3be38e9`, P2 `fb7959a` |
+| 7 | Model rebuild (§6, §7) | next | see `HANDOFF.md` §3 |
+
+The frontend fixes (§8: F1–F10) are done by the teammate in `frontend/` and are tracked in `HANDOFF.md`. S1 (scenarios never reached a route) is resolved by the round 2 graph fix; the round 3 tests cover it.

@@ -1,6 +1,6 @@
 # Supplychainer: running bug list
 
-Dictated by the team during inspection on 28 Sep 2026 and saved by Claude Code. Nothing here is fixed yet.
+Dictated by the team during inspection on 28 Sep 2026 and saved by Claude Code: 126 findings. Four more were found while fixing (S4, R19, R20, N12), 130 in total. Which ones are fixed, and in which commit, is in the Progress section of `BUG_REPORT.md`.
 
 **Impact** is a first guess, used to decide what to fix first. High means judges will see it, or it changes a routing decision.
 
@@ -92,6 +92,8 @@ Dictated by the team during inspection on 28 Sep 2026 and saved by Claude Code. 
 | R16 | 206–209 | Any routing error is printed to the terminal and the persona is silently skipped | – | Hidden errors | Low | Walkthrough |
 | R17 | 214–221 | When two personas pick the same stops, the later card is dropped without a note, so the user is never told "the fastest route is also the safest". The duplicate check compares stops only, not modes. | T19 | UX | High | Walkthrough |
 | R18 | 229–242 | The explanation numbers are formulas on the route's own values, not comparisons: 20% of transit hours, transfer hours ÷ 4, (1 − threat) × 100, and 15% of cost. `eta` (line 233) is computed and never used. | T8–T11 | Invented metrics | High | Walkthrough |
+| R19 | 38–59, 160 | Requests that arrive while the startup warm-up is still running see edges with no `base_threat` yet, so every leg shows the 0.05 default and "Standard conditions" instead of the warmed values (threat 0.0, "No live news for this corridor"). Nothing tells the caller the engine is still warming up. | – | Race, misleading output | Medium | Round 1–3 manual checks |
+| R20 | `_explain` | Introduced by our R18 fix: SAFEST's text says "Avoids FASTEST's peak threat of X" even when its own peak threat is also X (Chennai flood, road: both 0.75). It should say the threat is the same. | R18 | Wrong text | Low | Round 6 manual checks |
 
 ## D. From reading `backend/engine/multimodal_network.py` and `backend/data/canonical_hubs.json` (N)
 
@@ -108,6 +110,7 @@ Dictated by the team during inspection on 28 Sep 2026 and saved by Claude Code. 
 | N9 | data, 106–123 | 12 of the 14 chokepoints have no incoming edge (Malacca, Hormuz, Bab-el-Mandeb, Gibraltar, Dover, Cape of Good Hope, …). Only Suez and Panama can ever be entered, so the Red Sea and Hormuz scenarios can never affect any route, from anywhere. | T1, T2 | Wrong topology | High | Walkthrough |
 | N10 | data | 9 pairs of hubs share identical coordinates (Port/Rail Shanghai, Port/Rail Rotterdam, Hub/Rail Chicago, …). This creates 29 transit edges of 0 km, including self-loops such as Port of Singapore → itself. | T13 | Data integrity | Medium | Walkthrough |
 | N11 | 125–139 | The road auto-wire links every road-capable pair of hubs under 200 km apart, in both directions, ignoring water and borders | T14 | Wrong geography | High | Walkthrough |
+| N12 | `canonical_hubs.json` | Two different facilities share the ID `HUB-CHICAGO` ("Chicago Strategic DC" and "Elk Grove Village Logistics"). `hub_lookup` keeps only the second, both write the same graph nodes, and the road auto-wire made a Chicago → Chicago self-loop. Round 2 only guards the self-loop; the data still needs a rename. | N10 | Data error | Medium | Round 2 tests |
 
 Sections E–J come from a skim for important issues only (28–29 Sep night), to be reviewed by the team.
 
