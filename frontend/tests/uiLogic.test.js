@@ -234,3 +234,26 @@ test('R2: the route page renders the model output and counts the predicted delay
     'delayDrivers(selected)', 'modelStatusView(', "fetch('/api/status')", 'audit_trace.eta.predicted_delay'])
     assert.ok(src.includes(call), call);
 });
+
+// Round 8 (R6, N1, N2): cargo type and priority are real inputs, and the page shows the rules the backend applied
+test('R6: cargoRulesView shows the excluded modes with reasons and the BALANCED time weight', () => {
+  assert.deepEqual(ui.cargoRulesView({
+    cargo_type: 'hazardous_waste', excluded_modes: ['air'],
+    reasons: ['air: Many hazardous materials are forbidden or restricted on aircraft.'],
+    priority: 'urgent', balanced_time_weight: 0.43,
+  }), {
+    cargo: 'hazardous_waste: air excluded. Many hazardous materials are forbidden or restricted on aircraft.',
+    priority: 'Priority urgent: BALANCED weighs time 0.43 (normal 0.3).',
+  });
+  assert.deepEqual(ui.cargoRulesView({ cargo_type: 'general', excluded_modes: [], reasons: [], priority: 'normal', balanced_time_weight: 0.3 }),
+    { cargo: null, priority: null });
+  assert.equal(ui.cargoRulesView(undefined), null);
+});
+
+test('R6: the route page offers the backend cargo types and priorities and shows the applied rules', () => {
+  const src = source('RouteRecommender.jsx');
+  for (const v of ['general', 'hazardous_waste', 'perishable_urgent', 'oversize_heavy', 'urgent', 'normal', 'low'])
+    assert.ok(src.includes(`<option value="${v}"`), v);
+  for (const call of ['setCargoType(e.target.value)', 'setPriority(e.target.value)', 'cargoRulesView(cargoRules)', 'data.cargo_rules'])
+    assert.ok(src.includes(call), call);
+});
